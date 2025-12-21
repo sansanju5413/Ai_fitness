@@ -1,4 +1,4 @@
-import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -49,7 +49,6 @@ class ProfileRepository {
 
       return UserProfile.fromJson(doc.data()!);
     } catch (e) {
-      print('Error fetching profile: $e');
       return null;
     }
   }
@@ -71,15 +70,10 @@ class ProfileRepository {
         try {
           return UserProfile.fromJson(snapshot.data()!);
         } catch (e) {
-          print('Error parsing profile: $e');
           return null;
         }
-      }).handleError((error) {
-        print('Error watching profile: $error');
-        return null;
       });
     } catch (e) {
-      print('Error setting up profile stream: $e');
       return Stream.value(null);
     }
   }
@@ -137,7 +131,6 @@ Write in a friendly, professional tone. Format with clear sections and bullet po
 
       return responseText;
     } catch (e) {
-      print('Error generating AI assessment: $e');
       // Return fallback assessment
       return '''
 Based on your profile, here is your personalized assessment:

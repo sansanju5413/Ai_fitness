@@ -61,7 +61,6 @@ class AiFoodService {
           try {
             return FoodItem.fromJson(json);
           } catch (e) {
-            print('Error parsing food item: $e');
             // Return a default food item if parsing fails
             return FoodItem(
               name: json['name']?.toString() ?? 'Unknown Food',
@@ -72,7 +71,6 @@ class AiFoodService {
           }
         }).toList();
       } catch (e) {
-        print('JSON Parse Error: $e');
         // Return a fallback food item based on description
         return [
           FoodItem(
@@ -85,7 +83,6 @@ class AiFoodService {
       }
 
     } catch (e) {
-      print('AI Error: $e');
       // Return a fallback instead of rethrowing to prevent crashes
       return [
         FoodItem(

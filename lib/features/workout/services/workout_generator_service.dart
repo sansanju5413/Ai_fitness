@@ -52,7 +52,6 @@ class WorkoutGeneratorService {
       return _parseWorkoutPlan(jsonData, profile);
       
     } catch (e) {
-      print('Error generating workout plan: $e');
       // Return fallback plan if AI fails
       return _generateFallbackPlan(profile);
     }

@@ -1,0 +1,29 @@
+﻿Analyzing ai_fitness_app...                                     
+
+warning - Unused import: '../profile/repositories/profile_repository.dart' - lib\features\auth\register_screen.dart:8:8 - unused_import
+warning - The declaration '_signInWithGoogle' isn't referenced - lib\features\auth\register_screen.dart:61:16 - unused_element
+   info - Don't invoke 'print' in production code - lib\features\nutrition\services\ai_food_service.dart:64:13 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\nutrition\services\ai_food_service.dart:75:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\nutrition\services\ai_food_service.dart:88:7 - avoid_print
+warning - Unused import: 'dart:convert' - lib\features\profile\repositories\profile_repository.dart:1:8 - unused_import
+   info - Don't invoke 'print' in production code - lib\features\profile\repositories\profile_repository.dart:52:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\profile\repositories\profile_repository.dart:74:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\profile\repositories\profile_repository.dart:78:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\profile\repositories\profile_repository.dart:82:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\profile\repositories\profile_repository.dart:140:7 - avoid_print
+warning - Unused import: 'package:google_fonts/google_fonts.dart' - lib\features\profile\screens\profile_setup_screen.dart:5:8 - unused_import
+warning - Unused import: '../repositories/profile_repository.dart' - lib\features\profile\screens\profile_setup_screen.dart:8:8 - unused_import
+warning - Unused import: 'profile_screen.dart' - lib\features\profile\screens\settings_screen.dart:4:8 - unused_import
+warning - The value of the local variable 'prevExercise' isn't used - lib\features\session\providers\session_provider.dart:233:13 - unused_local_variable
+warning - The '!' will have no effect because the receiver can't be null - lib\features\session\providers\session_provider.dart:265:33 - unnecessary_non_null_assertion
+   info - Don't invoke 'print' in production code - lib\features\session\providers\session_provider.dart:273:9 - avoid_print
+   info - Don't use 'BuildContext's across async gaps - lib\features\splash\splash_screen.dart:44:9 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\features\splash\splash_screen.dart:50:9 - use_build_context_synchronously
+   info - Don't invoke 'print' in production code - lib\features\workout\repositories\workout_repository.dart:49:7 - avoid_print
+warning - The '!' will have no effect because the receiver can't be null - lib\features\workout\repositories\workout_repository.dart:97:45 - unnecessary_non_null_assertion
+   info - Don't invoke 'print' in production code - lib\features\workout\repositories\workout_repository.dart:105:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\workout\repositories\workout_repository.dart:112:13 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\workout\repositories\workout_repository.dart:125:9 - avoid_print
+warning - The declaration '_showWorkoutPreview' isn't referenced - lib\features\workout\screens\workout_plans_screen.dart:529:6 - unused_element
+   info - Don't invoke 'print' in production code - lib\features\workout\services\workout_generator_service.dart:55:7 - avoid_print
+

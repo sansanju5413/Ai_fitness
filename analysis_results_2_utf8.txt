@@ -1,0 +1,6 @@
+﻿Analyzing ai_fitness_app...                                     
+
+  error - The argument type 'DailyWorkout?' can't be assigned to the parameter type 'DailyWorkout'.  - lib\features\session\providers\session_provider.dart:264:20 - argument_type_not_assignable
+   info - Empty catch block - lib\features\workout\repositories\workout_repository.dart:109:31 - empty_catches
+   info - Empty catch block - lib\features\workout\repositories\workout_repository.dart:121:27 - empty_catches
+

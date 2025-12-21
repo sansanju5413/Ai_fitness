@@ -5,7 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_theme.dart';
 import 'auth_repository.dart';
-import '../profile/repositories/profile_repository.dart';
+
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -194,6 +194,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           )
                         : const Text('Create Account'),
                   ).animate().fadeIn(delay: 700.ms).scale(),
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: _isLoading ? null : _signInWithGoogle,
+                    icon: const Icon(Icons.g_mobiledata, size: 24),
+                    label: const Text('Sign up with Google'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.textPrimary,
+                      side: const BorderSide(color: AppColors.surfaceLight),
+                    ),
+                  ).animate().fadeIn(delay: 750.ms).scale(),
 
                   const SizedBox(height: 24),
 

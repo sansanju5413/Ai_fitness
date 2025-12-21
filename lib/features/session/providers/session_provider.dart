@@ -230,8 +230,6 @@ class SessionNotifier extends StateNotifier<SessionState> {
     
     // Go to previous exercise in current block
     if (state.currentExerciseIndex > 0) {
-      final prevExercise = state.activeWorkout!.blocks[state.currentBlockIndex]
-          .exercises[state.currentExerciseIndex - 1];
       state = state.copyWith(
         currentExerciseIndex: state.currentExerciseIndex - 1,
         currentSetNumber: 1, // Reset to first set of previous exercise
@@ -262,15 +260,15 @@ class SessionNotifier extends StateNotifier<SessionState> {
         state.startTime != null &&
         state.logs.isNotEmpty) {
       try {
-        await _sessionRepository!.saveWorkoutSession(
+        await _sessionRepository.saveWorkoutSession(
           workout: state.activeWorkout!,
           startTime: state.startTime!,
           duration: state.elapsedDuration,
           exerciseLogs: state.logs,
         );
-      } catch (e) {
+      } catch (saveError) {
+        // ignore: empty_catches
         // Log error but don't prevent session completion
-        print('Error saving workout session: $e');
       }
     }
     

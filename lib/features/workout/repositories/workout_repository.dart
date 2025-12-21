@@ -46,7 +46,6 @@ class WorkoutRepository {
       // If no active plan found, return mock plan
       return _generateMockPlan();
     } catch (e) {
-      print('Error fetching workout plan: $e');
       // Fallback to mock plan on error
       return _generateMockPlan();
     }
@@ -94,7 +93,7 @@ class WorkoutRepository {
   }) async {
     if (_generatorService != null) {
       try {
-        final plan = await _generatorService!.generatePlan(
+        final plan = await _generatorService.generatePlan(
           profile,
           userNotes: userNotes,
         );
@@ -102,14 +101,13 @@ class WorkoutRepository {
         await saveWorkoutPlan(plan);
         return plan;
       } catch (e) {
-        print('Error generating AI plan: $e');
         // Fallback to mock plan
         final mockPlan = _generateMockPlan();
         if (_userId != null) {
           try {
             await saveWorkoutPlan(mockPlan);
           } catch (saveError) {
-            print('Error saving mock plan: $saveError');
+            // ignore: empty_catches
           }
         }
         return mockPlan;
@@ -122,7 +120,7 @@ class WorkoutRepository {
       try {
         await saveWorkoutPlan(mockPlan);
       } catch (saveError) {
-        print('Error saving mock plan: $saveError');
+        // ignore: empty_catches
       }
     }
     return mockPlan;

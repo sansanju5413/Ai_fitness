@@ -116,8 +116,35 @@ class _ExerciseLibraryScreenState extends State<ExerciseLibraryScreen> {
                       subtitle: Text(ex.notes, style: const TextStyle(color: AppColors.textSecondary)),
                       trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textSecondary),
                       onTap: () {
-                         // Open detailed view (Phase 6 or future)
-                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Selected: ${ex.name}')));
+                         showDialog(
+                           context: context,
+                           builder: (context) => AlertDialog(
+                             backgroundColor: AppColors.surface,
+                             title: Text(ex.name, style: const TextStyle(color: AppColors.textPrimary)),
+                             content: Column(
+                               mainAxisSize: MainAxisSize.min,
+                               crossAxisAlignment: CrossAxisAlignment.start,
+                               children: [
+                                 Text('Focus: ${ex.notes}', style: const TextStyle(color: AppColors.textSecondary)),
+                                 const SizedBox(height: 16),
+                                 Row(
+                                   mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                   children: [
+                                     _buildMetric('Sets', ex.sets.toString()),
+                                     _buildMetric('Reps', ex.reps.toString()),
+                                     _buildMetric('Rest', '${ex.restSeconds}s'),
+                                   ],
+                                 ),
+                               ],
+                             ),
+                             actions: [
+                               TextButton(
+                                 onPressed: () => Navigator.pop(context),
+                                 child: const Text('Close'),
+                               ),
+                             ],
+                           ),
+                         );
                       },
                     ),
                   );
@@ -127,6 +154,14 @@ class _ExerciseLibraryScreenState extends State<ExerciseLibraryScreen> {
           ],
         ),
       ),
+    );
+  }
+  Widget _buildMetric(String label, String value) {
+    return Column(
+      children: [
+        Text(value, style: const TextStyle(color: AppColors.primary, fontSize: 18, fontWeight: FontWeight.bold)),
+        Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+      ],
     );
   }
 }

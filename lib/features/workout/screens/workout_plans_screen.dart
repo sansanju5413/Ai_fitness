@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
 import '../models/workout_plan.dart';
+import '../models/predefined_workouts.dart';
 import '../repositories/workout_repository.dart';
 import '../../profile/models/user_profile.dart';
 import '../../profile/screens/profile_screen.dart';
@@ -19,95 +20,131 @@ class WorkoutPlansScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final workoutPlanAsync = ref.watch(currentWorkoutPlanProvider);
 
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
-        child: SafeArea(
-          child: Stack(
-            children: [
-              Column(
-                children: [
-                  const _WorkoutsHeader(),
-                  const SizedBox(height: 16),
-                  const _CategoryChips(),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: workoutPlanAsync.when(
-                      data: (plan) {
-                        if (plan == null) {
-                          return Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.fitness_center, size: 64, color: AppColors.textSecondary),
-                                const SizedBox(height: 16),
-                                const Text(
-                                  'No workout plan found',
-                                  style: TextStyle(color: AppColors.textPrimary, fontSize: 18),
-                                ),
-                                const SizedBox(height: 8),
-                                const Text(
-                                  'Generate a new plan to get started',
-                                  style: TextStyle(color: AppColors.textSecondary),
-                                ),
-                              ],
-                            ),
-                          );
-                        }
-                        if (plan.weeklySchedule.isEmpty) {
-                          return const Center(
-                            child: Text(
-                              'Workout plan is empty',
-                              style: TextStyle(color: AppColors.textPrimary),
-                            ),
-                          );
-                        }
-                        return _WorkoutPlanView(plan: plan);
-                      },
-                      loading: () => const Center(
-                        child: CircularProgressIndicator(color: AppColors.primary),
-                      ),
-                      error: (err, stack) => Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.error_outline, size: 64, color: AppColors.accent),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Error loading workout plan',
-                              style: const TextStyle(color: AppColors.textPrimary, fontSize: 18),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              err.toString(),
-                              style: const TextStyle(color: AppColors.textSecondary),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        body: Container(
+          decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
+          child: SafeArea(
+            child: Stack(
+              children: [
+                Column(
+                  children: [
+                    const _WorkoutsHeader(),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16.0),
+                      child: TabBar(
+                        indicatorColor: AppColors.primary,
+                        labelColor: AppColors.primary,
+                        unselectedLabelColor: AppColors.textSecondary,
+                        tabs: [
+                          Tab(text: 'Weekly Plan'),
+                          Tab(text: 'Exercise Plans'),
+                        ],
                       ),
                     ),
-                  ),
-                ],
-              ),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: TabBarView(
+                        children: [
+                          // Weekly Plan Tab
+                          Column(
+                            children: [
+                              const _CategoryChips(),
+                              const SizedBox(height: 16),
+                              Expanded(
+                                child: workoutPlanAsync.when(
+                                  data: (plan) {
+                                    if (plan == null) {
+                                      return _buildEmptyPlanView();
+                                    }
+                                    if (plan.weeklySchedule.isEmpty) {
+                                      return const Center(
+                                        child: Text(
+                                          'Workout plan is empty',
+                                          style: TextStyle(color: AppColors.textPrimary),
+                                        ),
+                                      );
+                                    }
+                                    return _WorkoutPlanView(plan: plan);
+                                  },
+                                  loading: () => const Center(
+                                    child: CircularProgressIndicator(color: AppColors.primary),
+                                  ),
+                                  error: (err, stack) => _buildErrorView(err),
+                                ),
+                              ),
+                            ],
+                          ),
+                          // Exercises Tab
+                          const _PredefinedPlansView(),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
 
-              // "+ Add Workout" floating button
-              Positioned(
-                bottom: 24,
-                right: 24,
-                child: FloatingActionButton.extended(
-                  onPressed: () => _showAddWorkoutSheet(context, ref),
-                  backgroundColor: AppColors.primary,
-                  icon: const Icon(Icons.add, color: Colors.black),
-                  label: const Text(
-                    'Add Workout',
-                    style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                // "+ Add Workout" floating button
+                Positioned(
+                  bottom: 24,
+                  right: 24,
+                  child: FloatingActionButton.extended(
+                    onPressed: () => _showAddWorkoutSheet(context, ref),
+                    backgroundColor: AppColors.primary,
+                    icon: const Icon(Icons.add, color: Colors.black),
+                    label: const Text(
+                      'Add Workout',
+                      style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyPlanView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.fitness_center, size: 64, color: AppColors.textSecondary),
+          const SizedBox(height: 16),
+          const Text(
+            'No workout plan found',
+            style: TextStyle(color: AppColors.textPrimary, fontSize: 18),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Generate a new plan to get started',
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorView(Object err) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, size: 64, color: AppColors.accent),
+          const SizedBox(height: 16),
+          const Text(
+            'Error loading workout plan',
+            style: TextStyle(color: AppColors.textPrimary, fontSize: 18),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            err.toString(),
+            style: const TextStyle(color: AppColors.textSecondary),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
@@ -403,10 +440,7 @@ class _DailyWorkoutCard extends StatelessWidget {
     }
 
     return InkWell(
-      onTap: () {
-        // Navigate directly to guided workout (with preview)
-        context.push('/guided-workout', extra: dailyWorkout);
-      },
+      onTap: () => _showWorkoutPreview(context, dailyWorkout),
       borderRadius: BorderRadius.circular(24),
       child: Container(
         height: 180,
@@ -852,6 +886,22 @@ Future<void> _showAddWorkoutSheet(BuildContext context, WidgetRef ref) async {
   );
 
   notesController.dispose();
+}
+
+class _PredefinedPlansView extends StatelessWidget {
+  const _PredefinedPlansView();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: predefinedWorkouts.length,
+      itemBuilder: (context, index) {
+        final workout = predefinedWorkouts[index];
+        return _DailyWorkoutCard(dailyWorkout: workout, dayIndex: index);
+      },
+    );
+  }
 }
 
 class _Tag extends StatelessWidget {

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
+import 'package:video_player/video_player.dart';
+import 'package:chewie/chewie.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../workout/models/workout_plan.dart';
 import '../providers/session_provider.dart';
@@ -644,7 +646,7 @@ class _ProgressIndicator extends StatelessWidget {
   }
 }
 
-class _ExerciseCard extends StatelessWidget {
+class _ExerciseCard extends StatefulWidget {
   final Exercise exercise;
   final String blockType;
   final int setNumber;
@@ -656,9 +658,35 @@ class _ExerciseCard extends StatelessWidget {
   });
 
   @override
+  State<_ExerciseCard> createState() => _ExerciseCardState();
+}
+
+class _ExerciseCardState extends State<_ExerciseCard> {
+  int _currentSlideIndex = 0;
+
+  String _getExerciseImage(String exerciseName) {
+    final name = exerciseName.toLowerCase();
+    if (name.contains('push-up') || name.contains('chest')) {
+      return 'assets/images/download.jpg';
+    } else if (name.contains('squat') || name.contains('leg')) {
+      return 'assets/images/download_1.jpg';
+    } else if (name.contains('dumbbell') || name.contains('arm')) {
+      return 'assets/images/Symactive_10Kg_Adjustable_Dumbbell_Set___PVC_Weights_plus_14_Rod_Pair___Home_Workout_Kit___Black.jpg';
+    } else if (name.contains('cycle') || name.contains('bike')) {
+      return 'assets/images/Schwinn_IC3_Indoor_Cycling_Bike_Review.jpg';
+    } else if (name.contains('stretch') || name.contains('yoga')) {
+      return 'assets/images/Beginners_Workout_Plan_for_Weight_Gain_at_Home.jpg';
+    }
+    return 'assets/images/Dangerous_jim_for_visit.jpg';
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final slides = widget.exercise.instructionSlides;
+    final hasMultipleSlides = slides.length > 1;
+
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
@@ -667,8 +695,8 @@ class _ExerciseCard extends StatelessWidget {
           border: Border.all(color: AppColors.surfaceLight),
         ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            // Block Type Label
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               decoration: BoxDecoration(
@@ -676,7 +704,7 @@ class _ExerciseCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                blockType.toUpperCase(),
+                widget.blockType.toUpperCase(),
                 style: const TextStyle(
                   color: AppColors.primary,
                   fontSize: 11,
@@ -686,70 +714,119 @@ class _ExerciseCard extends StatelessWidget {
               ),
             ),
             
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
+            
+            // Exercise Image
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.asset(
+                _getExerciseImage(widget.exercise.name),
+                height: 180,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 180,
+                  color: AppColors.surfaceLight,
+                  child: const Icon(Icons.fitness_center, size: 48, color: AppColors.textSecondary),
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 20),
             
             Text(
-              exercise.name,
+              widget.exercise.name,
               style: GoogleFonts.outfit(
-                fontSize: 28,
+                fontSize: 26,
                 fontWeight: FontWeight.bold,
                 color: AppColors.textPrimary,
               ),
               textAlign: TextAlign.center,
             ),
             
-            const SizedBox(height: 32),
+            const SizedBox(height: 20),
             
+            // Stats Row
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _ExerciseDetail(
                   label: 'SET',
-                  value: '$setNumber / ${exercise.sets}',
+                  value: '${widget.setNumber} / ${widget.exercise.sets}',
                 ),
-                const SizedBox(width: 32),
+                const SizedBox(width: 40),
                 _ExerciseDetail(
                   label: 'REPS',
-                  value: '${exercise.reps}',
+                  value: '${widget.exercise.reps}',
                 ),
-                if (exercise.durationSeconds != null) ...[
-                  const SizedBox(width: 32),
+                if (widget.exercise.durationSeconds != null) ...[
+                  const SizedBox(width: 40),
                   _ExerciseDetail(
                     label: 'TIME',
-                    value: '${exercise.durationSeconds}s',
+                    value: '${widget.exercise.durationSeconds}s',
                   ),
                 ],
               ],
             ),
             
-            if (exercise.notes.isNotEmpty) ...[
-              const SizedBox(height: 32),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.info_outline, color: AppColors.primary, size: 20),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        exercise.notes,
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 13,
+            const Spacer(),
+            
+            // Instruction Slides
+            Container(
+              padding: const EdgeInsets.all(20),
+              constraints: const BoxConstraints(minHeight: 120),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.surfaceLight.withValues(alpha: 0.3)),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    slides[_currentSlideIndex],
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 15,
+                      height: 1.5,
+                    ),
+                    textAlign: TextAlign.center,
+                  ).animate(key: ValueKey(_currentSlideIndex)).fadeIn().slideY(begin: 0.1),
+                  
+                  if (hasMultipleSlides) ...[
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.chevron_left),
+                          onPressed: _currentSlideIndex > 0 
+                            ? () => setState(() => _currentSlideIndex--) 
+                            : null,
+                          color: AppColors.primary,
+                          disabledColor: AppColors.textSecondary.withValues(alpha: 0.3),
                         ),
-                      ),
+                        Text(
+                          'Step ${_currentSlideIndex + 1} of ${slides.length}',
+                          style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_right),
+                          onPressed: _currentSlideIndex < slides.length - 1 
+                            ? () => setState(() => _currentSlideIndex++) 
+                            : null,
+                          color: AppColors.primary,
+                          disabledColor: AppColors.textSecondary.withValues(alpha: 0.3),
+                        ),
+                      ],
                     ),
                   ],
-                ),
+                ],
               ),
-            ],
+            ),
           ],
         ),
-      ).animate().fadeIn().scale(begin: const Offset(0.95, 0.95)),
+      ).animate().fadeIn().scale(begin: const Offset(0.98, 0.98)),
     );
   }
 }
@@ -981,5 +1058,62 @@ class _CompletionStat extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+class _ExerciseVideoPlayer extends StatefulWidget {
+  final String videoPath;
+  const _ExerciseVideoPlayer({required this.videoPath});
+
+  @override
+  State<_ExerciseVideoPlayer> createState() => _ExerciseVideoPlayerState();
+}
+
+class _ExerciseVideoPlayerState extends State<_ExerciseVideoPlayer> {
+  late VideoPlayerController _videoPlayerController;
+  ChewieController? _chewieController;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializePlayer();
+  }
+
+  Future<void> _initializePlayer() async {
+    _videoPlayerController = VideoPlayerController.asset(widget.videoPath);
+    await _videoPlayerController.initialize();
+    _chewieController = ChewieController(
+      videoPlayerController: _videoPlayerController,
+      autoPlay: true,
+      looping: true,
+      aspectRatio: _videoPlayerController.value.aspectRatio,
+      showControls: true,
+      allowFullScreen: true,
+      placeholder: const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      ),
+    );
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _videoPlayerController.dispose();
+    _chewieController?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_chewieController != null && _chewieController!.videoPlayerController.value.isInitialized) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Chewie(controller: _chewieController!),
+      );
+    } else {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
   }
 }

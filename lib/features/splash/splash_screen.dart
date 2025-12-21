@@ -40,6 +40,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       final bool hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
 
       // Navigate based on onboarding, auth, and profile state
+      if (!mounted) return;
+
       if (!hasSeenOnboarding) {
         context.go('/onboarding');
         return;
@@ -47,6 +49,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
+        if (!mounted) return;
         context.go('/login');
         return;
       }

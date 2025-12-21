@@ -118,6 +118,14 @@ class Exercise {
     required this.notes,
   });
 
+  List<String> get instructionSlides {
+    if (notes.isEmpty) return ["Get ready for your next exercise!"];
+    // Split by common delimiters like period followed by space, or newline
+    final slides = notes.split(RegExp(r'\. |\n')).where((s) => s.trim().isNotEmpty).toList();
+    if (slides.isEmpty) return [notes];
+    return slides;
+  }
+
   Map<String, dynamic> toJson() => {
         'name': name,
         'sets': sets,
