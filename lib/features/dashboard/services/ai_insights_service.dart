@@ -1,84 +1,91 @@
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/services/base_ai_service.dart';
 import '../../profile/models/user_profile.dart';
+import '../../profile/repositories/profile_repository.dart';
 import '../../session/repositories/session_repository.dart';
 
-class AiInsightsService {
-  String generateDailySuggestion({
+class AiInsightsService extends BaseAiService {
+  AiInsightsService() : super(model: 'gemini-1.5-flash');
+
+  Future<String> generateDailySuggestion({
     required UserProfile? profile,
     required List<WorkoutSession> recentSessions,
-  }) {
+  }) async {
     if (profile == null) {
       return 'Complete your profile setup to get personalized AI insights tailored to your fitness goals.';
     }
 
-    final goal = profile.fitnessProfile.primaryGoal;
-    final level = profile.fitnessProfile.fitnessLevel;
-    
-    // Check recent activity (last 7 days)
     final now = DateTime.now();
     final last7Days = now.subtract(const Duration(days: 7));
-    final recentWorkouts = recentSessions
+    final completedSessions = recentSessions
         .where((s) => s.startTime.isAfter(last7Days) && s.isCompleted)
-        .length;
-    
-    // Check today's activity
-    final today = DateTime(now.year, now.month, now.day);
-    final workoutToday = recentSessions.any((s) {
-      final sessionDay = DateTime(s.startTime.year, s.startTime.month, s.startTime.day);
-      return sessionDay == today && s.isCompleted;
-    });
+        .toList();
 
-    // Generate contextual suggestion
-    if (workoutToday) {
-      return 'Great work today! 💪 You\'ve completed your workout. Consider some light stretching or a walk to aid recovery. Stay hydrated!';
+    final prompt = '''
+You are a professional fitness AI coach. Generate a concise, motivational daily suggestion (1-2 sentences) for a user on their dashboard.
+
+User Data:
+- Goal: ${profile.fitnessProfile.primaryGoal}
+- Level: ${profile.fitnessProfile.fitnessLevel}
+- Workouts this week: ${completedSessions.length}
+- Last workout: ${completedSessions.isEmpty ? 'None' : completedSessions.last.startTime.toIso8601String()}
+
+Return ONLY a JSON object:
+{
+  "suggestion": "Your personalized message here"
+}
+''';
+
+    try {
+      final responseText = await generateJsonContent(prompt);
+      if (responseText != null) {
+        String cleanedText = responseText.trim();
+        if (cleanedText.startsWith('```')) {
+            cleanedText = cleanedText
+              .replaceAll('```json', '')
+              .replaceAll('```', '')
+              .trim();
+        }
+        final Map<String, dynamic> data = jsonDecode(cleanedText);
+        return data['suggestion'] ?? 'Keep pushing toward your ${profile.fitnessProfile.primaryGoal} goal!';
+      }
+    } catch (e) {
+      // Fallback to static logic if AI fails
     }
 
-    if (recentWorkouts == 0) {
-      return 'Ready to start your fitness journey? Begin with a $level-level workout focusing on ${goal.toLowerCase()}. Consistency is key!';
+    return _getStaticSuggestion(profile, completedSessions);
+  }
+
+  String _getStaticSuggestion(UserProfile profile, List<WorkoutSession> completedSessions) {
+    if (completedSessions.isEmpty) {
+      return 'Ready to start? Begin with a ${profile.fitnessProfile.fitnessLevel} workout today!';
     }
-
-    if (recentWorkouts < 2) {
-      return 'You\'ve worked out $recentWorkouts time this week. Aim for 3-4 sessions to see progress toward your $goal goal. You\'ve got this!';
-    }
-
-    if (recentWorkouts >= 3 && recentWorkouts < 5) {
-      return 'Excellent consistency! $recentWorkouts workouts this week. To maximize your $goal results, maintain this rhythm and ensure adequate rest.';
-    }
-
-    if (recentWorkouts >= 5) {
-      return 'Outstanding effort with $recentWorkouts workouts! For optimal recovery and muscle growth, consider taking a rest day. Listen to your body.';
-    }
-
-    // Default suggestion based on fitness level
-    final suggestions = {
-      'beginner': 'Focus on form over intensity. Aim for 3 full-body workouts this week with rest days in between.',
-      'intermediate': 'Challenge yourself with progressive overload. Add weight or reps to your key lifts this week.',
-      'advanced': 'Optimize your training split and nutrition. Track your volume and ensure you\'re recovering adequately.',
-    };
-
-    final levelSuggestion = suggestions[level.toLowerCase()] ?? 
-        'Stay consistent with your training and track your progress!';
-
-    return '$levelSuggestion Your goal: $goal.';
+    return 'Great job on your ${completedSessions.length} workouts this week! Keep it up.';
   }
 
   String getMotivationalMessage(int streak) {
-    if (streak == 0) {
-      return 'Every journey begins with a single step. Start today!';
-    }
-    if (streak == 1) {
-      return 'Great start! Keep the momentum going.';
-    }
-    if (streak < 7) {
-      return '$streak-day streak! You\'re building a habit.';
-    }
-    if (streak < 30) {
-      return '$streak days strong! Consistency is your superpower.';
-    }
-    return '$streak-day streak! You\'re unstoppable! 🔥';
+    if (streak == 0) return 'Every journey begins with a single step. Start today!';
+    if (streak == 1) return 'Great start! Keep the momentum going.';
+    return '$streak-day streak! Consistency is your superpower. 🔥';
   }
 }
 
 final aiInsightsServiceProvider = Provider<AiInsightsService>((ref) {
   return AiInsightsService();
+});
+
+final dailyAiSuggestionProvider = FutureProvider<String>((ref) async {
+  final aiService = ref.watch(aiInsightsServiceProvider);
+  final profile = ref.watch(profileStreamProvider).valueOrNull;
+  
+  // We need workoutSessionsStreamProvider which is in session_repository.dart
+  // Usually it's better to watch the data if possible.
+  final sessionsAsync = ref.watch(workoutSessionsStreamProvider);
+  final sessions = sessionsAsync.valueOrNull ?? [];
+  
+  return aiService.generateDailySuggestion(
+    profile: profile,
+    recentSessions: sessions,
+  );
 });

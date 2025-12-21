@@ -1,13 +1,49 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../models/workout_plan.dart';
+import '../widgets/exercise_detail_view.dart';
 
 // Mock list of exercises for demo
 final allExercises = [
-  Exercise(name: 'Push Up', sets: 3, reps: 15, restSeconds: 60, notes: 'Chest/Triceps'),
-  Exercise(name: 'Bench Press', sets: 4, reps: 8, restSeconds: 90, notes: 'Chest'),
-  Exercise(name: 'Pull Up', sets: 3, reps: 8, restSeconds: 60, notes: 'Back'),
-  Exercise(name: 'Squat', sets: 4, reps: 10, restSeconds: 90, notes: 'Legs'),
+  Exercise(
+    name: 'Push Up', 
+    sets: 3, 
+    reps: 15, 
+    restSeconds: 60, 
+    notes: 'Chest/Triceps',
+    steps: [
+      'Place hands slightly wider than shoulders.',
+      'Maintain a straight line from head to heels.',
+      'Lower chest until nearly touching the floor.',
+      'Push back up explosively.'
+    ]
+  ),
+  Exercise(
+    name: 'Bench Press', 
+    sets: 4, 
+    reps: 8, 
+    restSeconds: 90, 
+    notes: 'Chest',
+    steps: [
+      'Lie flat on the bench.',
+      'Grip the bar with hands slightly wider than shoulders.',
+      'Lower the bar slowly to mid-chest.',
+      'Press the bar straight up to starting position.'
+    ]
+  ),
+  Exercise(
+    name: 'Squat', 
+    sets: 4, 
+    reps: 10, 
+    restSeconds: 90, 
+    notes: 'Legs',
+    steps: [
+      'Feet shoulder-width apart, toes slightly out.',
+      'Lower hips as if sitting in a chair.',
+      'Keep your chest up and back flat.',
+      'Push through your heels to stand back up.'
+    ]
+  ),
   Exercise(name: 'Deadlift', sets: 3, reps: 5, restSeconds: 120, notes: 'Back/Legs'),
   Exercise(name: 'Plank', sets: 3, reps: 60, restSeconds: 30, notes: 'Core'),
   Exercise(name: 'Lunge', sets: 3, reps: 12, restSeconds: 60, notes: 'Legs'),
@@ -116,34 +152,12 @@ class _ExerciseLibraryScreenState extends State<ExerciseLibraryScreen> {
                       subtitle: Text(ex.notes, style: const TextStyle(color: AppColors.textSecondary)),
                       trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textSecondary),
                       onTap: () {
-                         showDialog(
+                         showModalBottomSheet(
                            context: context,
-                           builder: (context) => AlertDialog(
-                             backgroundColor: AppColors.surface,
-                             title: Text(ex.name, style: const TextStyle(color: AppColors.textPrimary)),
-                             content: Column(
-                               mainAxisSize: MainAxisSize.min,
-                               crossAxisAlignment: CrossAxisAlignment.start,
-                               children: [
-                                 Text('Focus: ${ex.notes}', style: const TextStyle(color: AppColors.textSecondary)),
-                                 const SizedBox(height: 16),
-                                 Row(
-                                   mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                   children: [
-                                     _buildMetric('Sets', ex.sets.toString()),
-                                     _buildMetric('Reps', ex.reps.toString()),
-                                     _buildMetric('Rest', '${ex.restSeconds}s'),
-                                   ],
-                                 ),
-                               ],
-                             ),
-                             actions: [
-                               TextButton(
-                                 onPressed: () => Navigator.pop(context),
-                                 child: const Text('Close'),
-                               ),
-                             ],
-                           ),
+                           isScrollControlled: true,
+                           useRootNavigator: true,
+                           backgroundColor: Colors.transparent,
+                           builder: (context) => ExerciseDetailView(exercise: ex),
                          );
                       },
                     ),
@@ -154,14 +168,6 @@ class _ExerciseLibraryScreenState extends State<ExerciseLibraryScreen> {
           ],
         ),
       ),
-    );
-  }
-  Widget _buildMetric(String label, String value) {
-    return Column(
-      children: [
-        Text(value, style: const TextStyle(color: AppColors.primary, fontSize: 18, fontWeight: FontWeight.bold)),
-        Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-      ],
     );
   }
 }

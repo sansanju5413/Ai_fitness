@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../profile/models/user_profile.dart';
-import '../../session/repositories/session_repository.dart';
 import '../services/ai_insights_service.dart';
 
 class AiSuggestionCard extends ConsumerWidget {
@@ -14,18 +13,7 @@ class AiSuggestionCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = profileAsync.valueOrNull;
-    final sessionsAsync = ref.watch(workoutSessionsStreamProvider);
-    final aiInsights = ref.watch(aiInsightsServiceProvider);
-
-    String suggestion = 'Loading insights...';
-    
-    sessionsAsync.whenData((sessions) {
-      suggestion = aiInsights.generateDailySuggestion(
-        profile: profile,
-        recentSessions: sessions,
-      );
-    });
+    final suggestionAsync = ref.watch(dailyAiSuggestionProvider);
 
     return Container(
       width: double.infinity,
@@ -70,8 +58,8 @@ class AiSuggestionCard extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 16),
-          sessionsAsync.when(
-            data: (_) => Text(
+          suggestionAsync.when(
+            data: (suggestion) => Text(
               suggestion,
               style: GoogleFonts.outfit(
                 color: AppColors.secondary,
@@ -89,8 +77,8 @@ class AiSuggestionCard extends ConsumerWidget {
                 ),
               ),
             ),
-            error: (_, __) => Text(
-              'Unable to load insights. Check back soon!',
+            error: (err, __) => Text(
+              'Coach is busy thinking... Check back soon!',
               style: GoogleFonts.outfit(
                 color: AppColors.secondary,
                 fontSize: 16,

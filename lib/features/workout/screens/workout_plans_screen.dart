@@ -9,6 +9,7 @@ import '../models/predefined_workouts.dart';
 import '../repositories/workout_repository.dart';
 import '../../profile/models/user_profile.dart';
 import '../../profile/screens/profile_screen.dart';
+import '../widgets/exercise_detail_view.dart';
 
 /// Currently selected workout category filter for the weekly plan.
 final selectedWorkoutCategoryProvider = StateProvider<String>((_) => 'All');
@@ -527,6 +528,7 @@ void _showWorkoutPreview(BuildContext context, DailyWorkout workout) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
+    useRootNavigator: true,
     backgroundColor: Colors.transparent,
     builder: (ctx) {
       return DraggableScrollableSheet(
@@ -611,87 +613,94 @@ void _showWorkoutPreview(BuildContext context, DailyWorkout workout) {
                             ),
                             const SizedBox(height: 8),
                             ...block.exercises.map(
-                              (e) => Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Icon(Icons.fitness_center, size: 16, color: AppColors.textSecondary),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            e.name,
-                                            style: const TextStyle(
-                                              color: AppColors.textPrimary,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            '${e.sets} x ${e.reps}${e.durationSeconds != null ? ' · ${e.durationSeconds}s' : ''} · Rest ${e.restSeconds}s',
-                                            style: const TextStyle(
-                                              color: AppColors.textSecondary,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                          if (e.notes.isNotEmpty)
-                                            Text(
-                                              e.notes,
-                                              style: const TextStyle(
-                                                color: AppColors.textSecondary,
-                                                fontSize: 11,
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
+                               (e) => InkWell(
+                                 onTap: () {
+                                   showModalBottomSheet(
+                                     context: context,
+                                     isScrollControlled: true,
+                                     useRootNavigator: true,
+                                     backgroundColor: Colors.transparent,
+                                     builder: (context) => ExerciseDetailView(exercise: e),
+                                   );
+                                 },
+                                 borderRadius: BorderRadius.circular(8),
+                                 child: Padding(
+                                   padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                                   child: Row(
+                                     crossAxisAlignment: CrossAxisAlignment.start,
+                                     children: [
+                                       const Icon(Icons.fitness_center, size: 16, color: AppColors.textSecondary),
+                                       const SizedBox(width: 8),
+                                       Expanded(
+                                         child: Column(
+                                           crossAxisAlignment: CrossAxisAlignment.start,
+                                           children: [
+                                             Text(
+                                               e.name,
+                                               style: const TextStyle(
+                                                 color: AppColors.textPrimary,
+                                                 fontWeight: FontWeight.w600,
+                                               ),
+                                             ),
+                                             const SizedBox(height: 2),
+                                             Text(
+                                               '${e.sets} x ${e.reps}${e.durationSeconds != null ? ' · ${e.durationSeconds}s' : ''} · Rest ${e.restSeconds}s',
+                                               style: const TextStyle(
+                                                 color: AppColors.textSecondary,
+                                                 fontSize: 12,
+                                               ),
+                                             ),
+                                           ],
+                                         ),
+                                       ),
+                                     ],
+                                   ),
+                                 ),
+                               ),
+                             ),
                           ],
                         ),
                       );
                     },
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.of(ctx).pop(),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.textSecondary,
-                            side: const BorderSide(color: AppColors.surfaceLight),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          child: const Text('Close Plan'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.of(ctx).pop();
-                            GoRouter.of(context).push('/guided-workout', extra: workout);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.black,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          child: const Text(
-                            'Start Workout',
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.of(ctx).pop(),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.textSecondary,
+                              side: const BorderSide(color: AppColors.surfaceLight),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            child: const Text('Close Plan'),
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.of(ctx).pop();
+                              GoRouter.of(context).push('/guided-workout', extra: workout);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.black,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            child: const Text(
+                              'Start Workout',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -711,6 +720,7 @@ Future<void> _showAddWorkoutSheet(BuildContext context, WidgetRef ref) async {
   await showModalBottomSheet(
     context: context,
     isScrollControlled: true,
+    useRootNavigator: true,
     backgroundColor: Colors.transparent,
     builder: (ctx) {
       return Padding(
@@ -786,92 +796,95 @@ Future<void> _showAddWorkoutSheet(BuildContext context, WidgetRef ref) async {
                           ),
                         ),
                         const SizedBox(height: 20),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: () => Navigator.of(ctx).pop(),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: AppColors.textSecondary,
-                                  side: const BorderSide(color: AppColors.surfaceLight),
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                        SafeArea(
+                          top: false,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () => Navigator.of(ctx).pop(),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppColors.textSecondary,
+                                    side: const BorderSide(color: AppColors.surfaceLight),
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                  ),
+                                  child: const Text('Cancel'),
                                 ),
-                                child: const Text('Cancel'),
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: () async {
-                                  final repository = ref.read(workoutRepositoryProvider);
-                                  final profileStream = ref.read(profileStreamProvider);
-                                  final baseProfile =
-                                      profileStream.valueOrNull ?? _defaultProfile();
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: () async {
+                                    final repository = ref.read(workoutRepositoryProvider);
+                                    final profileStream = ref.read(profileStreamProvider);
+                                    final baseProfile =
+                                        profileStream.valueOrNull ?? _defaultProfile();
 
-                                  // Create a lightweight customized profile with the selected goal.
-                                  final customizedProfile = UserProfile(
-                                    uid: baseProfile.uid,
-                                    basicInfo: baseProfile.basicInfo,
-                                    bodyMetrics: baseProfile.bodyMetrics,
-                                    fitnessProfile: FitnessProfile(
-                                      primaryGoal: selectedGoal,
-                                      fitnessLevel: baseProfile.fitnessProfile.fitnessLevel,
-                                      activityLevel: baseProfile.fitnessProfile.activityLevel,
-                                      availableEquipment: baseProfile.fitnessProfile.availableEquipment,
-                                      workoutLocation: baseProfile.fitnessProfile.workoutLocation,
-                                      durationPreference: baseProfile.fitnessProfile.durationPreference,
-                                    ),
-                                    nutritionProfile: baseProfile.nutritionProfile,
-                                    healthLifestyle: baseProfile.healthLifestyle,
-                                    isProfileComplete: baseProfile.isProfileComplete,
-                                  );
-
-                                  try {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Generating personalized workout...'),
-                                        backgroundColor: AppColors.primary,
+                                    // Create a lightweight customized profile with the selected goal.
+                                    final customizedProfile = UserProfile(
+                                      uid: baseProfile.uid,
+                                      basicInfo: baseProfile.basicInfo,
+                                      bodyMetrics: baseProfile.bodyMetrics,
+                                      fitnessProfile: FitnessProfile(
+                                        primaryGoal: selectedGoal,
+                                        fitnessLevel: baseProfile.fitnessProfile.fitnessLevel,
+                                        activityLevel: baseProfile.fitnessProfile.activityLevel,
+                                        availableEquipment: baseProfile.fitnessProfile.availableEquipment,
+                                        workoutLocation: baseProfile.fitnessProfile.workoutLocation,
+                                        durationPreference: baseProfile.fitnessProfile.durationPreference,
                                       ),
+                                      nutritionProfile: baseProfile.nutritionProfile,
+                                      healthLifestyle: baseProfile.healthLifestyle,
+                                      isProfileComplete: baseProfile.isProfileComplete,
                                     );
 
-                                    await repository.generateNewPlan(
-                                      customizedProfile,
-                                      userNotes: notesController.text.trim().isEmpty
-                                          ? null
-                                          : notesController.text.trim(),
-                                    );
-                                    if (context.mounted) {
+                                    try {
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         const SnackBar(
-                                          content: Text('New workout plan ready!'),
-                                          backgroundColor: AppColors.secondary,
+                                          content: Text('Generating personalized workout...'),
+                                          backgroundColor: AppColors.primary,
                                         ),
                                       );
-                                    }
-                                    if (context.mounted) Navigator.of(ctx).pop();
-                                  } catch (e) {
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('Could not generate plan: $e'),
-                                          backgroundColor: AppColors.accent,
-                                        ),
+
+                                      await repository.generateNewPlan(
+                                        customizedProfile,
+                                        userNotes: notesController.text.trim().isEmpty
+                                            ? null
+                                            : notesController.text.trim(),
                                       );
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('New workout plan ready!'),
+                                            backgroundColor: AppColors.secondary,
+                                          ),
+                                        );
+                                      }
+                                      if (context.mounted) Navigator.of(ctx).pop();
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Could not generate plan: $e'),
+                                            backgroundColor: AppColors.accent,
+                                          ),
+                                        );
+                                      }
                                     }
-                                  }
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primary,
-                                  foregroundColor: Colors.black,
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                ),
-                                child: const Text(
-                                  'Generate Plan',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: Colors.black,
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                  ),
+                                  child: const Text(
+                                    'Generate Plan',
+                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ],
                     ),

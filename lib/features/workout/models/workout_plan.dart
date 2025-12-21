@@ -107,6 +107,7 @@ class Exercise {
   final int restSeconds;
   final String? videoUrl; // Placeholder for future
   final String notes;
+  final List<String>? steps;
 
   Exercise({
     required this.name,
@@ -116,12 +117,15 @@ class Exercise {
     required this.restSeconds,
     this.videoUrl,
     required this.notes,
+    this.steps,
   });
 
   List<String> get instructionSlides {
-    if (notes.isEmpty) return ["Get ready for your next exercise!"];
-    // Split by common delimiters like period followed by space, or newline
-    final slides = notes.split(RegExp(r'\. |\n')).where((s) => s.trim().isNotEmpty).toList();
+    if (steps != null && steps!.isNotEmpty) return steps!;
+    if (notes.isEmpty) return ["Prepare for the exercise and maintain good form throughout."];
+    
+    // Split by common delimiters: period followed by space, semicolon, or newline
+    final slides = notes.split(RegExp(r'\. |; |\n')).where((s) => s.trim().length > 3).toList();
     if (slides.isEmpty) return [notes];
     return slides;
   }
@@ -134,6 +138,7 @@ class Exercise {
         'restSeconds': restSeconds,
         'videoUrl': videoUrl,
         'notes': notes,
+        'steps': steps,
       };
 
   factory Exercise.fromJson(Map<String, dynamic> json) => Exercise(
@@ -144,5 +149,6 @@ class Exercise {
         restSeconds: json['restSeconds'] ?? 60,
         videoUrl: json['videoUrl'],
         notes: json['notes'] ?? '',
+        steps: (json['steps'] as List?)?.map((e) => e.toString()).toList(),
       );
 }

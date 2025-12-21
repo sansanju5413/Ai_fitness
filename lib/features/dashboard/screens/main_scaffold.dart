@@ -24,7 +24,12 @@ class _FloatingPillNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String location = GoRouterState.of(context).uri.path;
+    String location = '/home';
+    try {
+      location = GoRouterState.of(context).uri.path;
+    } catch (e) {
+      // Fallback for safety during transitions
+    }
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 24), // Float from bottom

@@ -17,6 +17,12 @@ final List<DailyWorkout> predefinedWorkouts = [
             restSeconds: 30,
             notes: 'Loosen up shoulder joints',
             videoUrl: 'assets/workouts/gymvisualcom-20251219-0002.mp4',
+            steps: [
+              'Stand tall with your feet shoulder-width apart.',
+              'Extend your arms straight out to the sides at shoulder height.',
+              'Make small, controlled circular motions with your arms.',
+              'Slowly increase the size of the circles to loosen the joints.'
+            ],
           ),
           Exercise(
             name: 'Push-up (Dynamic)',
@@ -24,6 +30,12 @@ final List<DailyWorkout> predefinedWorkouts = [
             reps: 10,
             restSeconds: 30,
             notes: 'Prime the chest muscles',
+            steps: [
+              'Get into a high plank position with hands slightly wider than shoulders.',
+              'Lower your body until your chest nearly touches the floor.',
+              'Push back up explosively while maintaining a straight line from head to heels.',
+              'Focus on the mind-muscle connection with your chest.'
+            ],
           ),
         ],
       ),
@@ -37,6 +49,12 @@ final List<DailyWorkout> predefinedWorkouts = [
             restSeconds: 90,
             notes: 'Focus on upper chest. Control the weight.',
             videoUrl: 'assets/workouts/gymvisualcom-20251219-0003.mp4',
+            steps: [
+              'Lie back on an incline bench set to 30-45 degrees.',
+              'Grip the barbell slightly wider than shoulder-width.',
+              'Lower the bar slowly to your upper chest.',
+              'Press the bar back up to the starting position without locking elbows.'
+            ],
           ),
           Exercise(
             name: 'Dumbbell Flyes',
@@ -45,6 +63,12 @@ final List<DailyWorkout> predefinedWorkouts = [
             restSeconds: 60,
             notes: 'Deep stretch at the bottom.',
             videoUrl: 'assets/workouts/gymvisualcom-20251219-0004.mp4',
+            steps: [
+              'Lie on a flat bench holding dumbbells above your chest.',
+              'Lower the weights out to your sides in a wide arc.',
+              'Maintain a slight bend in your elbows throughout.',
+              'Squeeze your chest muscles to bring the weights back together.'
+            ],
           ),
           Exercise(
             name: 'Cable Crossover',
@@ -98,6 +122,12 @@ final List<DailyWorkout> predefinedWorkouts = [
             restSeconds: 150,
             notes: 'Classic power move. Keep back flat.',
             videoUrl: 'assets/workouts/gymvisualcom-20251219-0020.mp4',
+            steps: [
+              'Stand with feet hip-width apart, barbell over mid-foot.',
+              'Bend at hips and knees to grip the bar with a flat back.',
+              'Lift the bar by extending hips and knees to a full standing position.',
+              'Lower the bar under control back to the floor.'
+            ],
           ),
           Exercise(
             name: 'Lat Pulldown',
@@ -160,6 +190,12 @@ final List<DailyWorkout> predefinedWorkouts = [
             restSeconds: 120,
             notes: 'Go below parallel if possible.',
             videoUrl: 'assets/workouts/gymvisualcom-20251219-0031.mp4',
+            steps: [
+              'Rest the barbell on your upper traps, feet shoulder-width apart.',
+              'Lower your hips by bending knees and pushing hips back.',
+              'Descend until thighs are at least parallel to the floor.',
+              'Drive back up to the starting position through your heels.'
+            ],
           ),
           Exercise(
             name: 'Leg Press',
