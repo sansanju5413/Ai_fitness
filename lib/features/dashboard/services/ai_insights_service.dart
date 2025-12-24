@@ -6,7 +6,7 @@ import '../../profile/repositories/profile_repository.dart';
 import '../../session/repositories/session_repository.dart';
 
 class AiInsightsService extends BaseAiService {
-  AiInsightsService() : super(model: 'gemini-1.5-flash');
+  AiInsightsService() : super();
 
   Future<String> generateDailySuggestion({
     required UserProfile? profile,
@@ -38,20 +38,26 @@ Return ONLY a JSON object:
 ''';
 
     try {
+      print('[AiInsightsService] 📤 Generating daily suggestion...');
       final responseText = await generateJsonContent(prompt);
+      
       if (responseText != null) {
         String cleanedText = responseText.trim();
         if (cleanedText.startsWith('```')) {
-            cleanedText = cleanedText
+          cleanedText = cleanedText
               .replaceAll('```json', '')
               .replaceAll('```', '')
               .trim();
         }
         final Map<String, dynamic> data = jsonDecode(cleanedText);
-        return data['suggestion'] ?? 'Keep pushing toward your ${profile.fitnessProfile.primaryGoal} goal!';
+        final suggestion = data['suggestion'];
+        
+        print('[AiInsightsService] ✅ Suggestion: $suggestion');
+        return suggestion ?? 'Keep pushing toward your ${profile.fitnessProfile.primaryGoal} goal!';
       }
     } catch (e) {
-      // Fallback to static logic if AI fails
+      print('[AiInsightsService] ❌ Error generating suggestion: $e');
+      // Return static fallback on error instead of crashing
     }
 
     return _getStaticSuggestion(profile, completedSessions);
@@ -79,8 +85,6 @@ final dailyAiSuggestionProvider = FutureProvider<String>((ref) async {
   final aiService = ref.watch(aiInsightsServiceProvider);
   final profile = ref.watch(profileStreamProvider).valueOrNull;
   
-  // We need workoutSessionsStreamProvider which is in session_repository.dart
-  // Usually it's better to watch the data if possible.
   final sessionsAsync = ref.watch(workoutSessionsStreamProvider);
   final sessions = sessionsAsync.valueOrNull ?? [];
   

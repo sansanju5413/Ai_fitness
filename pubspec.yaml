@@ -39,12 +39,13 @@ dependencies:
   firebase_auth: ^5.3.3
   cloud_firestore: ^5.5.0
   google_sign_in: ^6.2.1
-  google_generative_ai: ^0.4.6
+  http: ^1.2.0
   flutter_svg: ^2.0.16
   intl: ^0.19.0
   fl_chart: ^0.69.0
   video_player: ^2.10.1
   chewie: ^1.13.0
+  flutter_dotenv: ^5.1.0
 
 dev_dependencies:
   flutter_test:
@@ -64,6 +65,7 @@ flutter:
 
   # Application assets (images, etc.)
   assets:
+    - .env
     - assets/images/
     - assets/workouts/
 

@@ -694,8 +694,10 @@ class _ExerciseCardState extends State<_ExerciseCard> {
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: AppColors.surfaceLight),
         ),
-        child: Column(
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             // Block Type Label
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -769,7 +771,7 @@ class _ExerciseCardState extends State<_ExerciseCard> {
               ],
             ),
             
-            const Spacer(),
+            const SizedBox(height: 20),
             
             // Instruction Slides
             Container(
@@ -824,7 +826,8 @@ class _ExerciseCardState extends State<_ExerciseCard> {
                 ],
               ),
             ),
-          ],
+            ],
+          ),
         ),
       ).animate().fadeIn().scale(begin: const Offset(0.98, 0.98)),
     );

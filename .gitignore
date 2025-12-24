@@ -4,6 +4,11 @@
 *.pyc
 *.swp
 .DS_Store
+
+# Environment variables - KEEP SECRETS OUT OF GIT
+.env
+.env.*
+*.env
 .atom/
 .build/
 .buildlog/

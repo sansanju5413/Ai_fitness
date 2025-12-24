@@ -215,36 +215,133 @@ class _WorkoutsHeaderState extends ConsumerState<_WorkoutsHeader> {
               IconButton(
                 icon: const Icon(Icons.auto_awesome, color: AppColors.primary),
                 onPressed: () async {
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Generating AI workout plan...'),
-                      backgroundColor: AppColors.primary,
-                      duration: Duration(seconds: 2),
+                  // Show loading dialog
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (ctx) => AlertDialog(
+                      backgroundColor: AppColors.surface,
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const CircularProgressIndicator(color: AppColors.primary),
+                          const SizedBox(height: 20),
+                          Text(
+                            '🏋️ Generating Your Plan...',
+                            style: GoogleFonts.outfit(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Creating a personalized 7-day workout',
+                            style: TextStyle(color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
                     ),
                   );
 
                   final repository = ref.read(workoutRepositoryProvider);
                   try {
-                    // Prefer the real profile from Firestore, fall back to default.
                     final profileStream = ref.read(profileStreamProvider);
-                    final profile =
-                        profileStream.valueOrNull ?? _defaultProfile();
-                    await repository.generateNewPlan(profile);
+                    final profile = profileStream.valueOrNull ?? _defaultProfile();
+                    final plan = await repository.generateNewPlan(profile);
+                    
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('New AI plan ready!'),
-                          backgroundColor: AppColors.secondary,
+                      Navigator.pop(context); // Close loading dialog
+                      
+                      // Show preview dialog
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          backgroundColor: AppColors.surface,
+                          title: Row(
+                            children: [
+                              const Icon(Icons.check_circle, color: AppColors.primary),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Plan Ready!',
+                                style: GoogleFonts.outfit(
+                                  color: AppColors.textPrimary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '📅 7-Day ${plan.goal} Plan',
+                                style: const TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              ...plan.weeklySchedule.take(3).map((day) => Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: Text(
+                                  '• ${day.dayOfWeek}: ${day.isRestDay ? "Rest Day" : day.focus}',
+                                  style: const TextStyle(color: AppColors.textSecondary),
+                                ),
+                              )),
+                              if (plan.weeklySchedule.length > 3)
+                                const Text(
+                                  '... and 4 more days',
+                                  style: TextStyle(color: AppColors.textSecondary, fontStyle: FontStyle.italic),
+                                ),
+                            ],
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+                            ),
+                            ElevatedButton(
+                              onPressed: () async {
+                                Navigator.pop(ctx);
+                                // Actually save the plan now
+                                try {
+                                  await repository.saveWorkoutPlan(plan);
+                                  ref.invalidate(currentWorkoutPlanProvider);
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('✅ Workout plan saved!'),
+                                        backgroundColor: AppColors.secondary,
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('❌ Save failed: $e'),
+                                        backgroundColor: AppColors.accent,
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                              child: const Text('Save Plan', style: TextStyle(color: Colors.black)),
+                            ),
+                          ],
                         ),
                       );
-                      ref.invalidate(currentWorkoutPlanProvider);
                     }
                   } catch (e) {
                     if (context.mounted) {
+                      Navigator.pop(context); // Close loading dialog
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Could not generate plan: $e'),
+                          content: Text('❌ Error: $e'),
                           backgroundColor: AppColors.accent,
                         ),
                       );
@@ -815,6 +912,8 @@ Future<void> _showAddWorkoutSheet(BuildContext context, WidgetRef ref) async {
                               Expanded(
                                 child: ElevatedButton(
                                   onPressed: () async {
+                                    // Capture values before any async operations
+                                    final notes = notesController.text.trim();
                                     final repository = ref.read(workoutRepositoryProvider);
                                     final profileStream = ref.read(profileStreamProvider);
                                     final baseProfile =
@@ -838,19 +937,22 @@ Future<void> _showAddWorkoutSheet(BuildContext context, WidgetRef ref) async {
                                       isProfileComplete: baseProfile.isProfileComplete,
                                     );
 
+                                    // Close the sheet first to avoid controller issues
+                                    Navigator.of(ctx).pop();
+
                                     try {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Generating personalized workout...'),
-                                          backgroundColor: AppColors.primary,
-                                        ),
-                                      );
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Generating personalized workout...'),
+                                            backgroundColor: AppColors.primary,
+                                          ),
+                                        );
+                                      }
 
                                       await repository.generateNewPlan(
                                         customizedProfile,
-                                        userNotes: notesController.text.trim().isEmpty
-                                            ? null
-                                            : notesController.text.trim(),
+                                        userNotes: notes.isEmpty ? null : notes,
                                       );
                                       if (context.mounted) {
                                         ScaffoldMessenger.of(context).showSnackBar(
@@ -860,7 +962,6 @@ Future<void> _showAddWorkoutSheet(BuildContext context, WidgetRef ref) async {
                                           ),
                                         );
                                       }
-                                      if (context.mounted) Navigator.of(ctx).pop();
                                     } catch (e) {
                                       if (context.mounted) {
                                         ScaffoldMessenger.of(context).showSnackBar(
@@ -897,8 +998,8 @@ Future<void> _showAddWorkoutSheet(BuildContext context, WidgetRef ref) async {
       );
     },
   );
-
-  notesController.dispose();
+  // Note: Don't dispose notesController manually - it causes crashes when modal rebuilds
+  // Flutter's garbage collector will handle cleanup when the function scope ends
 }
 
 class _PredefinedPlansView extends StatelessWidget {

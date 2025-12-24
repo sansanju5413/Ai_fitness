@@ -122,10 +122,10 @@ class MacroNutrients {
       };
 
   factory MacroNutrients.fromJson(Map<String, dynamic> json) => MacroNutrients(
-        calories: json['calories'] ?? 0,
-        protein: json['protein'] ?? 0,
-        carbs: json['carbs'] ?? 0,
-        fat: json['fat'] ?? 0,
+        calories: (json['calories'] ?? 0).toInt(),
+        protein: (json['protein'] ?? 0).toInt(),
+        carbs: (json['carbs'] ?? 0).toInt(),
+        fat: (json['fat'] ?? 0).toInt(),
       );
 
   MacroNutrients operator +(MacroNutrients other) {

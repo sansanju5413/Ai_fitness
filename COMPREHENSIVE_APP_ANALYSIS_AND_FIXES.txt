@@ -1,0 +1,1412 @@
+================================================================================
+AI FITNESS APP - COMPREHENSIVE ANALYSIS & DETAILED FIX PLAN
+================================================================================
+Analysis Date: December 24, 2024
+Analyzed By: AI Code Auditor
+Status: Complete Code Review with Solutions
+================================================================================
+
+TABLE OF CONTENTS
+================================================================================
+1. CRITICAL SECURITY ISSUES
+2. AI INTEGRATION PROBLEMS
+3. UI/UX & RENDERING ISSUES  
+4. INCOMPLETE FEATURES & HALF-DONE PAGES
+5. STATE MANAGEMENT ISSUES
+6. DATA & BACKEND ISSUES
+7. DETAILED FIX IMPLEMENTATIONS
+8. BEST PRACTICES & RECOMMENDATIONS
+9. STEP-BY-STEP IMPLEMENTATION GUIDE
+
+================================================================================
+SECTION 1: CRITICAL SECURITY ISSUES
+================================================================================
+
+ISSUE 1.1: HARDCODED API KEYS IN MULTIPLE LOCATIONS
+────────────────────────────────────────────────────
+Severity: CRITICAL 🔴
+Location: lib/core/services/base_ai_service.dart
+
+Current Problem:
+- API key hardcoded directly in base_ai_service.dart (line 10)
+- Another API key in .env file (not being loaded)
+- Security risk: Keys exposed in version control
+- No proper environment variable management
+
+Code Location:
+File: lib/core/services/base_ai_service.dart
+Line 10: static const String _kGeminiApiKey = 'AIzaSyDzBOw_A8ThYiE3MSSjESAjLfAQPFnRVZM';
+
+Root Cause:
+- flutter_dotenv package not added to dependencies
+- No environment variable loader in main.dart
+- Direct hardcoding instead of secure config management
+
+SOLUTION 1.1: Implement Secure Environment Variable Loading
+────────────────────────────────────────────────────────────
+
+Step 1: Add flutter_dotenv to pubspec.yaml
+```yaml
+dependencies:
+  flutter_dotenv: ^5.1.0  # Add this line
+```
+
+Step 2: Update pubspec.yaml assets section
+```yaml
+flutter:
+  assets:
+    - .env  # Add this line
+    - assets/images/
+    - assets/workouts/
+```
+
+Step 3: Update main.dart to load environment variables
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';  // Add import
+import 'core/theme/app_theme.dart';
+import 'core/router/app_router.dart';
+import 'firebase_options.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Load environment variables FIRST
+  await dotenv.load(fileName: ".env");  // Add this line
+  print('✅ Environment variables loaded');
+
+  // Initialize Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  runApp(const ProviderScope(child: AiFitnessApp()));
+}
+```
+
+Step 4: Update base_ai_service.dart to use environment variables
+```dart
+import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';  // Add import
+
+class BaseAiService {
+  // Remove hardcoded key, use environment variable instead
+  static String get _kGeminiApiKey {
+    final apiKey = dotenv.env['GEMINI_API_KEY'];
+    if (apiKey == null || apiKey.isEmpty) {
+      throw Exception('GEMINI_API_KEY not found in environment variables');
+    }
+    return apiKey;
+  }
+  
+  final GenerativeModel _jsonModel;
+  final GenerativeModel _plainModel;
+
+  BaseAiService({String model = 'gemini-2.0-flash-exp'})
+      : _jsonModel = GenerativeModel(
+          model: model,
+          apiKey: _kGeminiApiKey,  // Now using env variable
+          generationConfig: GenerationConfig(
+            responseMimeType: 'application/json',
+            temperature: 0.7,  // Add for better results
+            topK: 40,
+            topP: 0.95,
+          ),
+        ),
+        _plainModel = GenerativeModel(
+          model: model,
+          apiKey: _kGeminiApiKey,  // Now using env variable
+          generationConfig: GenerationConfig(
+            temperature: 0.8,
+            topK: 40,
+            topP: 0.95,
+          ),
+        ) {
+    print('[AI] ✅ Gemini initialized with model: $model');
+  }
+
+  // Rest of the code remains the same...
+}
+```
+
+Step 5: Update .gitignore to ensure .env is never committed
+```
+# Environment files
+.env
+.env.*
+!.env.example
+```
+
+Step 6: Create .env.example for team reference
+```
+# Copy this file to .env and add your actual API key
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+================================================================================
+SECTION 2: AI INTEGRATION PROBLEMS
+================================================================================
+
+ISSUE 2.1: AI RESPONSES NOT RENDERING PROPERLY
+────────────────────────────────────────────────────
+Severity: HIGH 🟠
+Locations: Multiple AI service files
+
+Problems Identified:
+1. JSON parsing issues with Gemini responses
+2. No proper error handling for malformed responses
+3. Response format inconsistencies
+4. Missing retry logic for failed requests
+5. No loading states in UI during AI generation
+
+SOLUTION 2.1: Robust AI Response Handling
+────────────────────────────────────────────
+
+Update base_ai_service.dart with enhanced error handling:
+
+```dart
+import 'dart:convert';
+import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+class BaseAiService {
+  static String get _kGeminiApiKey {
+    final apiKey = dotenv.env['GEMINI_API_KEY'];
+    if (apiKey == null || apiKey.isEmpty) {
+      throw Exception('❌ GEMINI_API_KEY not found in .env file');
+    }
+    return apiKey;
+  }
+  
+  final GenerativeModel _jsonModel;
+  final GenerativeModel _plainModel;
+
+  BaseAiService({String model = 'gemini-2.0-flash-exp'})
+      : _jsonModel = GenerativeModel(
+          model: model,
+          apiKey: _kGeminiApiKey,
+          generationConfig: GenerationConfig(
+            responseMimeType: 'application/json',
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 8192,  // Increase for longer responses
+          ),
+        ),
+        _plainModel = GenerativeModel(
+          model: model,
+          apiKey: _kGeminiApiKey,
+          generationConfig: GenerationConfig(
+            temperature: 0.8,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 8192,
+          ),
+        ) {
+    print('[AI] ✅ Gemini initialized with model: $model');
+  }
+
+  GenerativeModel get jsonModel => _jsonModel;
+  GenerativeModel get plainModel => _plainModel;
+
+  /// Enhanced JSON generation with retry logic and better error handling
+  Future<String?> generateJsonContent(
+    String prompt, {
+    int maxRetries = 3,
+    Duration retryDelay = const Duration(seconds: 2),
+  }) async {
+    print('[AI] 📤 Sending JSON request...');
+    print('[AI] Prompt preview: ${prompt.substring(0, prompt.length > 100 ? 100 : prompt.length)}...');
+    
+    for (int attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        final content = [Content.text(prompt)];
+        final response = await _jsonModel.generateContent(content);
+        
+        if (response.text == null || response.text!.isEmpty) {
+          print('[AI] ⚠️ Attempt ${attempt + 1}: Response text is null or empty');
+          if (attempt < maxRetries - 1) {
+            await Future.delayed(retryDelay);
+            continue;
+          }
+          return null;
+        }
+        
+        final text = response.text!;
+        print('[AI] 📥 JSON Response received (${text.length} chars)');
+        
+        // Validate JSON before returning
+        try {
+          jsonDecode(text); // Test if valid JSON
+          print('[AI] ✅ Valid JSON response');
+          return text;
+        } catch (e) {
+          print('[AI] ⚠️ Invalid JSON format, attempting cleanup...');
+          final cleaned = _cleanJsonResponse(text);
+          try {
+            jsonDecode(cleaned);
+            print('[AI] ✅ JSON cleaned and validated');
+            return cleaned;
+          } catch (e) {
+            print('[AI] ❌ JSON still invalid after cleanup: $e');
+            if (attempt < maxRetries - 1) {
+              await Future.delayed(retryDelay);
+              continue;
+            }
+            throw Exception('Failed to parse JSON response after cleanup');
+          }
+        }
+      } catch (e) {
+        print('[AI] ❌ Attempt ${attempt + 1} ERROR: $e');
+        if (attempt < maxRetries - 1) {
+          print('[AI] 🔄 Retrying in ${retryDelay.inSeconds} seconds...');
+          await Future.delayed(retryDelay);
+        } else {
+          rethrow;
+        }
+      }
+    }
+    
+    return null;
+  }
+
+  /// Enhanced plain text generation with retry logic
+  Future<String?> generatePlainContent(
+    String prompt, {
+    int maxRetries = 3,
+    Duration retryDelay = const Duration(seconds: 2),
+  }) async {
+    print('[AI] 📤 Sending text request...');
+    
+    for (int attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        final content = [Content.text(prompt)];
+        final response = await _plainModel.generateContent(content);
+        
+        if (response.text == null || response.text!.isEmpty) {
+          print('[AI] ⚠️ Attempt ${attempt + 1}: Response text is null or empty');
+          if (attempt < maxRetries - 1) {
+            await Future.delayed(retryDelay);
+            continue;
+          }
+          return null;
+        }
+        
+        final text = response.text!;
+        print('[AI] 📥 Text Response received (${text.length} chars)');
+        return text;
+      } catch (e) {
+        print('[AI] ❌ Attempt ${attempt + 1} ERROR: $e');
+        if (attempt < maxRetries - 1) {
+          print('[AI] 🔄 Retrying in ${retryDelay.inSeconds} seconds...');
+          await Future.delayed(retryDelay);
+        } else {
+          rethrow;
+        }
+      }
+    }
+    
+    return null;
+  }
+
+  /// Clean and validate JSON responses from AI
+  String _cleanJsonResponse(String text) {
+    String cleaned = text.trim();
+    
+    // Remove markdown code blocks
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned
+          .replaceAll('```json', '')
+          .replaceAll('```', '')
+          .trim();
+    }
+    
+    // Remove any text before the first { or [
+    final jsonStart = cleaned.indexOf(RegExp(r'[\{\[]'));
+    if (jsonStart > 0) {
+      cleaned = cleaned.substring(jsonStart);
+    }
+    
+    // Remove any text after the last } or ]
+    final jsonEnd = cleaned.lastIndexOf(RegExp(r'[\}\]]'));
+    if (jsonEnd < cleaned.length - 1 && jsonEnd > 0) {
+      cleaned = cleaned.substring(0, jsonEnd + 1);
+    }
+    
+    return cleaned;
+  }
+
+  /// Test connection to Gemini API
+  Future<bool> testConnection() async {
+    try {
+      print('[AI] 🧪 Testing Gemini API connection...');
+      final response = await generatePlainContent('Say "OK" if you can hear me.');
+      if (response != null && response.isNotEmpty) {
+        print('[AI] ✅ Connection test successful');
+        return true;
+      }
+      print('[AI] ❌ Connection test failed: Empty response');
+      return false;
+    } catch (e) {
+      print('[AI] ❌ Connection test failed: $e');
+      return false;
+    }
+  }
+}
+```
+
+ISSUE 2.2: WORKOUT GENERATOR SERVICE IMPROVEMENTS
+────────────────────────────────────────────────────
+
+Current Issues:
+- Prompts not specific enough
+- No validation of generated workout structure
+- Missing exercise steps in many generated workouts
+- No progressive overload logic
+
+SOLUTION 2.2: Enhanced Workout Generator
+────────────────────────────────────────────
+
+Update lib/features/workout/services/workout_generator_service.dart:
+
+```dart
+import 'dart:convert';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/services/base_ai_service.dart';
+import '../../profile/models/user_profile.dart';
+import '../models/workout_plan.dart';
+
+class WorkoutGeneratorService extends BaseAiService {
+  WorkoutGeneratorService() : super(model: 'gemini-2.0-flash-exp');
+
+  Future<WorkoutPlan> generatePlan(
+    UserProfile profile, {
+    String? userNotes,
+  }) async {
+    print('[WorkoutGenerator] 🏋️ Generating plan for ${profile.basicInfo.fullName}...');
+    
+    try {
+      final prompt = _constructEnhancedPrompt(profile, userNotes: userNotes);
+      
+      final responseText = await generateJsonContent(prompt);
+
+      if (responseText == null || responseText.isEmpty) {
+        throw Exception('AI returned empty response');
+      }
+
+      print('[WorkoutGenerator] 📝 Parsing response...');
+      final Map<String, dynamic> jsonData = jsonDecode(responseText);
+      
+      // Validate response structure
+      if (!_validateWorkoutJson(jsonData)) {
+        throw Exception('Invalid workout plan structure from AI');
+      }
+      
+      final plan = _parseWorkoutPlan(jsonData, profile);
+      print('[WorkoutGenerator] ✅ Plan generated with ${plan.weeklySchedule.length} days');
+      
+      // Validate that all exercises have proper steps
+      _validateExerciseSteps(plan);
+      
+      return plan;
+      
+    } catch (e) {
+      print('[WorkoutGenerator] ❌ Error generating plan: $e');
+      print('[WorkoutGenerator] ⚠️ Using enhanced fallback plan');
+      return _generateEnhancedFallbackPlan(profile);
+    }
+  }
+
+  String _constructEnhancedPrompt(
+    UserProfile profile, {
+    String? userNotes,
+  }) {
+    final equipment = profile.fitnessProfile.availableEquipment.isEmpty 
+        ? 'Bodyweight only (no equipment)' 
+        : profile.fitnessProfile.availableEquipment.join(', ');
+        
+    final injuries = profile.healthLifestyle.injuries.isEmpty
+        ? 'None'
+        : profile.healthLifestyle.injuries.join(', ');
+    
+    final extraNotes = (userNotes != null && userNotes.trim().isNotEmpty)
+        ? '\n\nUser Preferences / Constraints:\n$userNotes\n'
+        : '';
+
+    return '''
+You are a professional certified personal trainer. Generate a personalized 7-day workout plan in PURE JSON format.
+
+CRITICAL REQUIREMENTS:
+1. Return ONLY valid JSON - NO markdown, NO backticks, NO extra text
+2. Every exercise MUST have 3-5 detailed instructional steps
+3. Include proper warmup and cooldown blocks
+4. Match the exact JSON structure provided below
+5. Use appropriate rep ranges and rest periods for the user's level
+
+USER PROFILE:
+- Name: ${profile.basicInfo.fullName}
+- Age: ${profile.basicInfo.age}, Gender: ${profile.basicInfo.gender}
+- Height: ${profile.bodyMetrics.height}cm, Weight: ${profile.bodyMetrics.weight}kg
+- Target Weight: ${profile.bodyMetrics.targetWeight}kg
+- Body Type: ${profile.bodyMetrics.bodyType}
+- Primary Goal: ${profile.fitnessProfile.primaryGoal}
+- Fitness Level: ${profile.fitnessProfile.fitnessLevel}
+- Activity Level: ${profile.fitnessProfile.activityLevel}
+- Available Equipment: $equipment
+- Injuries/Limitations: $injuries
+- Workout Days Per Week: ${profile.fitnessProfile.workoutDaysPerWeek}$extraNotes
+
+PROGRAMMING GUIDELINES BY LEVEL:
+
+BEGINNER:
+- 3-4 workout days, 3 rest days
+- Full body or upper/lower split
+- 2-3 sets per exercise
+- 10-12 reps per set
+- 60-90 seconds rest between sets
+- Focus on learning proper form
+- Duration: 30-40 minutes per session
+
+INTERMEDIATE:
+- 4-5 workout days, 2-3 rest days
+- Push/Pull/Legs or Upper/Lower split
+- 3-4 sets per exercise
+- 8-12 reps per set
+- 45-75 seconds rest between sets
+- Progressive overload principles
+- Duration: 45-60 minutes per session
+
+ADVANCED:
+- 5-6 workout days, 1-2 rest days
+- Complex splits (PPL, Arnold, Bro Split)
+- 4-5 sets per exercise
+- 6-12 reps per set (varies by goal)
+- 30-90 seconds rest (based on intensity)
+- Advanced techniques (drop sets, supersets)
+- Duration: 60-90 minutes per session
+
+GOAL-SPECIFIC PROGRAMMING:
+
+Weight Loss / Fat Loss:
+- Higher rep ranges (12-15)
+- Shorter rest periods (30-45 sec)
+- Include cardio/HIIT blocks
+- Compound movements focus
+- Circuit training style
+
+Muscle Gain / Hypertrophy:
+- Moderate rep ranges (8-12)
+- Moderate rest (45-75 sec)
+- Progressive overload focus
+- Volume emphasis
+- Isolation exercises included
+
+Strength & Power:
+- Lower rep ranges (4-8)
+- Longer rest (2-3 min)
+- Heavy compound lifts
+- Power movements
+- Skill practice
+
+General Fitness / Toning:
+- Moderate everything
+- Variety of exercises
+- Full body movements
+- Functional training
+- Mix of cardio and strength
+
+REQUIRED JSON STRUCTURE:
+{
+  "weeklySchedule": [
+    {
+      "dayOfWeek": "Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday",
+      "focus": "descriptive focus (e.g., Upper Body Push, Lower Body, Full Body, etc.)",
+      "durationMinutes": 30-90,
+      "isRestDay": false,
+      "blocks": [
+        {
+          "type": "Warmup|Main|Cooldown",
+          "exercises": [
+            {
+              "name": "Exercise Name",
+              "sets": 2-5,
+              "reps": 6-15,
+              "restSeconds": 30-180,
+              "notes": "Brief form cue or tip",
+              "steps": [
+                "Step 1: Detailed starting position",
+                "Step 2: Movement execution",
+                "Step 3: Key form cues",
+                "Step 4: Breathing pattern",
+                "Step 5: Common mistakes to avoid"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+EXERCISE SELECTION GUIDELINES:
+- Bodyweight: Push-ups, Squats, Lunges, Planks, Burpees, Mountain Climbers
+- Dumbbells: Goblet Squats, DB Press, DB Rows, Bicep Curls, Shoulder Press
+- Barbell: Squats, Deadlifts, Bench Press, Rows, Overhead Press
+- Resistance Bands: Band Pull-aparts, Band Rows, Banded Squats
+
+MANDATORY STRUCTURE FOR EACH WORKOUT DAY:
+1. Warmup Block (5-10 min):
+   - Dynamic stretches
+   - Mobility work
+   - Light cardio
+   - Movement prep
+
+2. Main Block (20-70 min):
+   - 4-8 main exercises
+   - Compound movements first
+   - Isolation exercises later
+   - Progressive difficulty
+
+3. Cooldown Block (5-10 min):
+   - Static stretching
+   - Foam rolling
+   - Cool-down cardio
+   - Mobility work
+
+REST DAY FORMAT:
+{
+  "dayOfWeek": "Sunday",
+  "focus": "Active Recovery",
+  "durationMinutes": 0,
+  "isRestDay": true,
+  "blocks": []
+}
+
+Generate exactly 7 days (Monday through Sunday) matching the user's profile.
+Each exercise must have 3-5 clear, actionable steps for proper execution.
+''';
+  }
+
+  bool _validateWorkoutJson(Map<String, dynamic> json) {
+    if (!json.containsKey('weeklySchedule')) {
+      print('[WorkoutGenerator] ❌ Missing weeklySchedule key');
+      return false;
+    }
+    
+    final schedule = json['weeklySchedule'];
+    if (schedule is! List || schedule.length != 7) {
+      print('[WorkoutGenerator] ❌ weeklySchedule must be a list of 7 days');
+      return false;
+    }
+    
+    return true;
+  }
+
+  void _validateExerciseSteps(WorkoutPlan plan) {
+    for (final day in plan.weeklySchedule) {
+      if (day.isRestDay) continue;
+      
+      for (final block in day.blocks) {
+        for (final exercise in block.exercises) {
+          if (exercise.steps == null || exercise.steps!.isEmpty) {
+            print('[WorkoutGenerator] ⚠️ Exercise "${exercise.name}" has no steps');
+          } else if (exercise.steps!.length < 3) {
+            print('[WorkoutGenerator] ⚠️ Exercise "${exercise.name}" has only ${exercise.steps!.length} steps (should have 3-5)');
+          }
+        }
+      }
+    }
+  }
+
+  WorkoutPlan _parseWorkoutPlan(Map<String, dynamic> jsonData, UserProfile profile) {
+    final now = DateTime.now();
+    final weeklySchedule = (jsonData['weeklySchedule'] as List?)
+            ?.map((day) => DailyWorkout.fromJson(day))
+            .toList() ??
+        [];
+
+    return WorkoutPlan(
+      id: 'ai_plan_${now.millisecondsSinceEpoch}',
+      userId: profile.uid,
+      startDate: now,
+      endDate: now.add(const Duration(days: 7)),
+      goal: profile.fitnessProfile.primaryGoal,
+      weeklySchedule: weeklySchedule,
+    );
+  }
+
+  WorkoutPlan _generateEnhancedFallbackPlan(UserProfile profile) {
+    final now = DateTime.now();
+    final isBeginnerLevel = profile.fitnessProfile.fitnessLevel == 'Beginner';
+    
+    return WorkoutPlan(
+      id: 'fallback_plan_${now.millisecondsSinceEpoch}',
+      userId: profile.uid,
+      startDate: now,
+      endDate: now.add(const Duration(days: 7)),
+      goal: profile.fitnessProfile.primaryGoal,
+      weeklySchedule: _buildFallbackSchedule(profile, isBeginnerLevel),
+    );
+  }
+
+  List<DailyWorkout> _buildFallbackSchedule(UserProfile profile, bool isBeginnerLevel) {
+    // Enhanced fallback with complete workouts
+    return [
+      // Monday - Full Body
+      DailyWorkout(
+        dayOfWeek: 'Monday',
+        focus: 'Full Body Strength',
+        durationMinutes: isBeginnerLevel ? 35 : 50,
+        blocks: [
+          ExerciseBlock(
+            type: 'Warmup',
+            exercises: [
+              Exercise(
+                name: 'Jumping Jacks',
+                sets: 2,
+                reps: 20,
+                restSeconds: 30,
+                notes: 'Warm up your entire body',
+                steps: [
+                  'Stand with feet together, arms at sides',
+                  'Jump while spreading legs shoulder-width apart and raising arms overhead',
+                  'Jump back to starting position',
+                  'Maintain steady rhythm and breathe naturally',
+                  'Keep core engaged throughout'
+                ],
+              ),
+              Exercise(
+                name: 'Arm Circles',
+                sets: 2,
+                reps: 15,
+                restSeconds: 20,
+                notes: 'Forward and backward',
+                steps: [
+                  'Stand with arms extended to sides at shoulder height',
+                  'Make small circles forward for 15 reps',
+                  'Reverse direction for 15 reps',
+                  'Keep shoulders relaxed',
+                  'Gradually increase circle size'
+                ],
+              ),
+            ],
+          ),
+          ExerciseBlock(
+            type: 'Main',
+            exercises: [
+              Exercise(
+                name: 'Bodyweight Squats',
+                sets: isBeginnerLevel ? 3 : 4,
+                reps: isBeginnerLevel ? 12 : 15,
+                restSeconds: 60,
+                notes: 'Focus on depth and control',
+                steps: [
+                  'Stand with feet shoulder-width apart, toes slightly out',
+                  'Push hips back and bend knees to lower down',
+                  'Keep chest up and core tight throughout',
+                  'Lower until thighs are parallel to ground',
+                  'Push through heels to return to standing',
+                  'Breathe in going down, out coming up'
+                ],
+              ),
+              Exercise(
+                name: 'Push-ups',
+                sets: isBeginnerLevel ? 3 : 4,
+                reps: isBeginnerLevel ? 8 : 12,
+                restSeconds: 60,
+                notes: 'Modify on knees if needed',
+                steps: [
+                  'Start in high plank position, hands slightly wider than shoulders',
+                  'Keep body in straight line from head to heels',
+                  'Lower chest toward ground by bending elbows',
+                  'Keep elbows at 45-degree angle from body',
+                  'Push back up to starting position',
+                  'Breathe in going down, out pushing up'
+                ],
+              ),
+              Exercise(
+                name: 'Lunges',
+                sets: 3,
+                reps: 10,
+                restSeconds: 45,
+                notes: '10 reps per leg',
+                steps: [
+                  'Stand tall with feet hip-width apart',
+                  'Step forward with right foot, lowering hips',
+                  'Both knees should bend to 90 degrees',
+                  'Front knee stays behind toes',
+                  'Push through front heel to return',
+                  'Alternate legs each rep'
+                ],
+              ),
+            ],
+          ),
+          ExerciseBlock(
+            type: 'Cooldown',
+            exercises: [
+              Exercise(
+                name: 'Standing Quad Stretch',
+                sets: 1,
+                durationSeconds: 30,
+                reps: 2,
+                restSeconds: 10,
+                notes: 'Hold each leg for 30 seconds',
+                steps: [
+                  'Stand on one leg, use wall for balance if needed',
+                  'Bend other knee and grab ankle behind you',
+                  'Pull heel toward glutes gently',
+                  'Keep knees together and hips forward',
+                  'Hold stretch without bouncing'
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+      
+      // Tuesday - Rest Day
+      DailyWorkout(
+        dayOfWeek: 'Tuesday',
+        focus: 'Active Recovery',
+        durationMinutes: 0,
+        isRestDay: true,
+        blocks: [],
+      ),
+      
+      // Wednesday - Upper Body
+      DailyWorkout(
+        dayOfWeek: 'Wednesday',
+        focus: 'Upper Body',
+        durationMinutes: isBeginnerLevel ? 30 : 45,
+        blocks: [
+          ExerciseBlock(
+            type: 'Warmup',
+            exercises: [
+              Exercise(
+                name: 'Arm Swings',
+                sets: 2,
+                reps: 15,
+                restSeconds: 20,
+                notes: 'Front to back',
+                steps: [
+                  'Stand with feet shoulder-width apart',
+                  'Swing both arms forward and up',
+                  'Swing arms back and down',
+                  'Use controlled, fluid movements',
+                  'Increase range of motion gradually'
+                ],
+              ),
+            ],
+          ),
+          ExerciseBlock(
+            type: 'Main',
+            exercises: [
+              Exercise(
+                name: 'Diamond Push-ups',
+                sets: 3,
+                reps: isBeginnerLevel ? 6 : 10,
+                restSeconds: 60,
+                notes: 'Targets triceps and chest',
+                steps: [
+                  'Start in push-up position',
+                  'Place hands close together forming diamond shape with fingers',
+                  'Lower body keeping elbows close to sides',
+                  'Keep core tight and back straight',
+                  'Push back up to starting position'
+                ],
+              ),
+              Exercise(
+                name: 'Pike Push-ups',
+                sets: 3,
+                reps: isBeginnerLevel ? 8 : 12,
+                restSeconds: 60,
+                notes: 'Targets shoulders',
+                steps: [
+                  'Start in downward dog position (hips high)',
+                  'Keep legs straight, bend at hips',
+                  'Lower head toward ground between hands',
+                  'Push back up using shoulders and triceps',
+                  'Maintain inverted V shape throughout'
+                ],
+              ),
+            ],
+          ),
+          ExerciseBlock(
+            type: 'Cooldown',
+            exercises: [
+              Exercise(
+                name: 'Shoulder Stretch',
+                sets: 2,
+                durationSeconds: 30,
+                reps: 1,
+                restSeconds: 10,
+                notes: 'Each arm',
+                steps: [
+                  'Pull one arm across body',
+                  'Use other arm to gently press',
+                  'Keep shoulders relaxed',
+                  'Hold steady stretch',
+                  'Switch arms and repeat'
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+      
+      // Thursday - Rest Day
+      DailyWorkout(
+        dayOfWeek: 'Thursday',
+        focus: 'Rest',
+        durationMinutes: 0,
+        isRestDay: true,
+        blocks: [],
+      ),
+      
+      // Friday - Lower Body
+      DailyWorkout(
+        dayOfWeek: 'Friday',
+        focus: 'Lower Body',
+        durationMinutes: isBeginnerLevel ? 35 : 50,
+        blocks: [
+          ExerciseBlock(
+            type: 'Warmup',
+            exercises: [
+              Exercise(
+                name: 'Leg Swings',
+                sets: 2,
+                reps: 15,
+                restSeconds: 20,
+                notes: 'Forward and side to side',
+                steps: [
+                  'Hold wall or chair for support',
+                  'Swing one leg forward and back',
+                  'Keep leg straight but not locked',
+                  'Switch to side-to-side swings',
+                  'Repeat on other leg'
+                ],
+              ),
+            ],
+          ),
+          ExerciseBlock(
+            type: 'Main',
+            exercises: [
+              Exercise(
+                name: 'Bulgarian Split Squats',
+                sets: 3,
+                reps: 10,
+                restSeconds: 60,
+                notes: 'Per leg, use chair',
+                steps: [
+                  'Place rear foot on chair or bench',
+                  'Front foot 2-3 feet forward',
+                  'Lower down by bending front knee',
+                  'Keep front knee behind toes',
+                  'Push through front heel to stand',
+                  'Complete all reps on one leg before switching'
+                ],
+              ),
+              Exercise(
+                name: 'Glute Bridges',
+                sets: 3,
+                reps: 15,
+                restSeconds: 45,
+                notes: 'Squeeze glutes at top',
+                steps: [
+                  'Lie on back with knees bent, feet flat',
+                  'Place feet hip-width apart near glutes',
+                  'Push through heels to lift hips up',
+                  'Squeeze glutes hard at top',
+                  'Lower with control',
+                  'Keep core engaged throughout'
+                ],
+              ),
+              Exercise(
+                name: 'Calf Raises',
+                sets: 3,
+                reps: 20,
+                restSeconds: 30,
+                notes: 'Can use step for more range',
+                steps: [
+                  'Stand with feet hip-width apart',
+                  'Rise up onto toes as high as possible',
+                  'Hold for 1 second at top',
+                  'Lower with control',
+                  'Use wall for balance if needed'
+                ],
+              ),
+            ],
+          ),
+          ExerciseBlock(
+            type: 'Cooldown',
+            exercises: [
+              Exercise(
+                name: 'Seated Hamstring Stretch',
+                sets: 2,
+                durationSeconds: 30,
+                reps: 1,
+                restSeconds: 10,
+                notes: 'Each leg',
+                steps: [
+                  'Sit with one leg extended',
+                  'Bend other leg with foot against inner thigh',
+                  'Reach toward extended foot',
+                  'Keep back straight',
+                  'Feel stretch in hamstring of extended leg'
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+      
+      // Saturday - Active Recovery or Light Cardio
+      DailyWorkout(
+        dayOfWeek: 'Saturday',
+        focus: 'Active Recovery',
+        durationMinutes: 20,
+        blocks: [
+          ExerciseBlock(
+            type: 'Main',
+            exercises: [
+              Exercise(
+                name: 'Light Walk or Yoga',
+                sets: 1,
+                durationSeconds: 1200,
+                reps: 1,
+                restSeconds: 0,
+                notes: '20 minutes of gentle movement',
+                steps: [
+                  'Choose light activity you enjoy',
+                  'Walk at comfortable pace',
+                  'Or do gentle yoga/stretching',
+                  'Focus on mobility and recovery',
+                  'Keep intensity low'
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+      
+      // Sunday - Rest Day
+      DailyWorkout(
+        dayOfWeek: 'Sunday',
+        focus: 'Complete Rest',
+        durationMinutes: 0,
+        isRestDay: true,
+        blocks: [],
+      ),
+    ];
+  }
+}
+
+final workoutGeneratorServiceProvider = Provider<WorkoutGeneratorService>((ref) {
+  return WorkoutGeneratorService();
+});
+```
+
+ISSUE 2.3: FOOD SERVICE AI IMPROVEMENTS
+────────────────────────────────────────
+
+Update lib/features/nutrition/services/ai_food_service.dart:
+
+```dart
+import 'dart:convert';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/services/base_ai_service.dart';
+import '../models/meal.dart';
+
+class AiFoodService extends BaseAiService {
+  AiFoodService() : super(model: 'gemini-2.0-flash-exp');
+
+  /// Enhanced food analysis with better prompting
+  Future<List<FoodItem>> analyzeFood(String description) async {
+    print('[AiFoodService] 🍎 Analyzing: "$description"');
+    
+    final prompt = '''
+You are a nutrition expert. Analyze this food description and return PURE JSON (no markdown).
+
+Food Description: "$description"
+
+IMPORTANT RULES:
+1. Return ONLY valid JSON array - NO markdown, NO backticks, NO extra text
+2. Provide accurate nutritional data based on standard serving sizes
+3. Break down mixed meals into individual components
+4. Use realistic calorie estimates
+
+STANDARD PORTIONS REFERENCE:
+- Eggs: 1 large egg = 70 cal (6g protein, 0g carbs, 5g fat)
+- Bread: 1 slice = 80 cal (3g protein, 15g carbs, 1g fat)
+- Butter: 1 tbsp = 100 cal (0g protein, 0g carbs, 11g fat)
+- Rice (cooked): 1 cup = 200 cal (4g protein, 45g carbs, 0g fat)
+- Chicken breast: 100g = 165 cal (31g protein, 0g carbs, 4g fat)
+- Banana: 1 medium = 105 cal (1g protein, 27g carbs, 0g fat)
+- Apple: 1 medium = 95 cal (0g protein, 25g carbs, 0g fat)
+- Oatmeal: 1/2 cup dry = 150 cal (5g protein, 27g carbs, 3g fat)
+- Milk: 1 cup = 150 cal (8g protein, 12g carbs, 8g fat)
+- Yogurt: 1 cup = 150 cal (8g protein, 17g carbs, 4g fat)
+
+JSON STRUCTURE:
+[
+  {
+    "name": "Food Item Name",
+    "quantity": 1.0,
+    "unit": "serving|piece|cup|gram|oz|tbsp",
+    "macros": {
+      "calories": 100,
+      "protein": 10,
+      "carbs": 15,
+      "fat": 5
+    }
+  }
+]
+
+EXAMPLES:
+
+Input: "2 eggs with toast and butter"
+Output:
+[
+  {"name": "Eggs", "quantity": 2, "unit": "piece", "macros": {"calories": 140, "protein": 12, "carbs": 0, "fat": 10}},
+  {"name": "Toast", "quantity": 2, "unit": "slice", "macros": {"calories": 160, "protein": 6, "carbs": 30, "fat": 2}},
+  {"name": "Butter", "quantity": 1, "unit": "tbsp", "macros": {"calories": 100, "protein": 0, "carbs": 0, "fat": 11}}
+]
+
+Input: "chicken salad"
+Output:
+[
+  {"name": "Grilled Chicken", "quantity": 150, "unit": "gram", "macros": {"calories": 248, "protein": 47, "carbs": 0, "fat": 6}},
+  {"name": "Mixed Salad", "quantity": 2, "unit": "cup", "macros": {"calories": 40, "protein": 2, "carbs": 8, "fat": 0}},
+  {"name": "Dressing", "quantity": 2, "unit": "tbsp", "macros": {"calories": 80, "protein": 0, "carbs": 2, "fat": 8}}
+]
+
+Now analyze: "$description"
+Return ONLY the JSON array, nothing else.
+''';
+
+    try {
+      final responseText = await generateJsonContent(prompt);
+
+      if (responseText == null || responseText.isEmpty) {
+        throw Exception('AI returned empty response');
+      }
+
+      print('[AiFoodService] 📊 Parsing JSON response...');
+      
+      final List<dynamic> jsonList = jsonDecode(responseText);
+      
+      if (jsonList.isEmpty) {
+        throw Exception('AI returned empty food list');
+      }
+      
+      final items = jsonList.map((json) => FoodItem.fromJson(json)).toList();
+      
+      print('[AiFoodService] ✅ Successfully parsed ${items.length} food items');
+      for (final item in items) {
+        print('[AiFoodService]   - ${item.name}: ${item.macros.calories} kcal'
+            ' (P: ${item.macros.protein}g, C: ${item.macros.carbs}g, F: ${item.macros.fat}g)');
+      }
+      
+      return items;
+
+    } catch (e) {
+      print('[AiFoodService] ❌ Error analyzing food: $e');
+      // Return a basic fallback instead of throwing
+      return _createFallbackFood(description);
+    }
+  }
+
+  /// Create fallback food item when AI fails
+  List<FoodItem> _createFallbackFood(String description) {
+    print('[AiFoodService] ⚠️ Using fallback food data');
+    
+    // Basic estimation based on common foods
+    return [
+      FoodItem(
+        name: description,
+        quantity: 1,
+        unit: 'serving',
+        macros: MacroNutrients(
+          calories: 300, // Conservative estimate
+          protein: 15,
+          carbs: 40,
+          fat: 10,
+        ),
+      ),
+    ];
+  }
+
+  /// Validate parsed food items
+  bool _validateFoodItems(List<FoodItem> items) {
+    for (final item in items) {
+      if (item.name.isEmpty) return false;
+      if (item.quantity <= 0) return false;
+      if (item.macros.calories < 0) return false;
+    }
+    return true;
+  }
+}
+
+final aiFoodServiceProvider = Provider<AiFoodService>((ref) {
+  return AiFoodService();
+});
+```
+
+================================================================================
+SECTION 3: UI/UX & RENDERING ISSUES
+================================================================================
+
+ISSUE 3.1: INCONSISTENT COMPONENT SIZES AND PLACEMENTS
+────────────────────────────────────────────────────────
+Severity: MEDIUM 🟡
+
+Problems:
+- Cards have varying padding and margins
+- Inconsistent button sizes across screens
+- Text sizes not following theme properly
+- Spacing between elements is random
+- No consistent layout grid system
+
+SOLUTION 3.1: Create Design System Constants
+────────────────────────────────────────────────
+
+Create new file: lib/core/theme/design_system.dart
+
+```dart
+import 'package:flutter/material.dart';
+
+/// Design System Constants for Consistent UI
+class DesignSystem {
+  // Spacing Scale (8pt grid system)
+  static const double space4 = 4.0;
+  static const double space8 = 8.0;
+  static const double space12 = 12.0;
+  static const double space16 = 16.0;
+  static const double space20 = 20.0;
+  static const double space24 = 24.0;
+  static const double space32 = 32.0;
+  static const double space40 = 40.0;
+  static const double space48 = 48.0;
+  static const double space64 = 64.0;
+
+  // Border Radius
+  static const double radiusSmall = 8.0;
+  static const double radiusMedium = 16.0;
+  static const double radiusLarge = 24.0;
+  static const double radiusXLarge = 32.0;
+  static const double radiusFull = 999.0; // Pills
+
+  // Icon Sizes
+  static const double iconSmall = 16.0;
+  static const double iconMedium = 24.0;
+  static const double iconLarge = 32.0;
+  static const double iconXLarge = 48.0;
+
+  // Button Heights
+  static const double buttonSmall = 36.0;
+  static const double buttonMedium = 48.0;
+  static const double buttonLarge = 56.0;
+
+  // Card Elevations
+  static const double elevationLow = 2.0;
+  static const double elevationMedium = 4.0;
+  static const double elevationHigh = 8.0;
+
+  // Layout
+  static const double maxContentWidth = 600.0;
+  static const double sidebarWidth = 280.0;
+  static const double bottomNavHeight = 80.0;
+
+  // Common EdgeInsets
+  static const EdgeInsets paddingSmall = EdgeInsets.all(space8);
+  static const EdgeInsets paddingMedium = EdgeInsets.all(space16);
+  static const EdgeInsets paddingLarge = EdgeInsets.all(space24);
+  
+  static const EdgeInsets paddingScreenHorizontal = EdgeInsets.symmetric(horizontal: space24);
+  static const EdgeInsets paddingScreenAll = EdgeInsets.all(space24);
+
+  // Common Border Radius
+  static BorderRadius borderRadiusSmall = BorderRadius.circular(radiusSmall);
+  static BorderRadius borderRadiusMedium = BorderRadius.circular(radiusMedium);
+  static BorderRadius borderRadiusLarge = BorderRadius.circular(radiusLarge);
+  static BorderRadius borderRadiusXLarge = BorderRadius.circular(radiusXLarge);
+
+  // Shadows
+  static List<BoxShadow> shadowLow = [
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.05),
+      blurRadius: 4,
+      offset: const Offset(0, 2),
+    ),
+  ];
+
+  static List<BoxShadow> shadowMedium = [
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.1),
+      blurRadius: 8,
+      offset: const Offset(0, 4),
+    ),
+  ];
+
+  static List<BoxShadow> shadowHigh = [
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.15),
+      blurRadius: 16,
+      offset: const Offset(0, 8),
+    ),
+  ];
+}
+
+/// Responsive Breakpoints
+class Breakpoints {
+  static const double mobile = 640;
+  static const double tablet = 768;
+  static const double desktop = 1024;
+  static const double wide = 1280;
+
+  static bool isMobile(BuildContext context) =>
+      MediaQuery.of(context).size.width < tablet;
+
+  static bool isTablet(BuildContext context) =>
+      MediaQuery.of(context).size.width >= tablet &&
+      MediaQuery.of(context).size.width < desktop;
+
+  static bool isDesktop(BuildContext context) =>
+      MediaQuery.of(context).size.width >= desktop;
+
+  static double getResponsivePadding(BuildContext context) {
+    if (isMobile(context)) return DesignSystem.space16;
+    if (isTablet(context)) return DesignSystem.space24;
+    return DesignSystem.space32;
+  }
+}
+```
+
+Update all screens to use DesignSystem constants. Example for home_screen.dart:
+
+```dart
+import '../../../core/theme/design_system.dart'; // Add import
+
+class HomeScreen extends ConsumerWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // ... existing code ...
+    
+    return Container(
+      decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
+      child: SafeArea(
+        child: RefreshIndicator(
+          // ... existing refresh indicator setup ...
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: DesignSystem.paddingScreenAll, // Use design system
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const DashboardHeader(),
+                SizedBox(height: DesignSystem.space32), // Consistent spacing
+                DailyGoalCard(
+                  profileAsync: profileAsync,
+                  sessionsAsync: sessionsAsync,
+                ),
+                SizedBox(height: DesignSystem.space32),
+                const QuickActionsGrid(),
+                SizedBox(height: DesignSystem.space32),
+                AiSuggestionCard(profileAsync: profileAsync),
+                SizedBox(height: DesignSystem.space32),
+                ActivityGraphCard(sessionsAsync: sessionsAsync),
+                SizedBox(height: DesignSystem.space32),
+                DailyOverviewCard(
+                  profileAsync: profileAsync,
+                  sessionsAsync: sessionsAsync,
+                ),
+                SizedBox(height: DesignSystem.bottomNavHeight + DesignSystem.space20),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+```
+
+ISSUE 3.2: RESPONSIVE LAYOUT ISSUES
+────────────────────────────────────
+
+Many screens don't adapt to different screen sizes properly.
+
+SOLUTION 3.2: Create Responsive Wrapper Widgets
+
+Create file: lib/core/widgets/responsive_layout.dart
+
+```dart
+import 'package:flutter/material.dart';
+import '../theme/design_system.dart';
+
+/// Responsive layout wrapper that adapts to screen size
+class ResponsiveLayout extends StatelessWidget {
+  final Widget mobile;
+  final Widget? tablet;
+  final Widget? desktop;
+
+  const ResponsiveLayout({
+    super.key,
+    required this.mobile,
+    this.tablet,
+    this.desktop,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= Breakpoints.desktop && desktop != null) {
+          return desktop!;
+        } else if (constraints.maxWidth >= Breakpoints.tablet && tablet != null) {
+          return tablet!;
+        } else {
+          return mobile;
+        }
+      },
+    );
+  }
+}
+
+/// Responsive grid that adapts columns based on screen width
+class ResponsiveGrid extends StatelessWidget {
+  final List<Widget> children;
+  final double spacing;
+  final int mobileColumns;
+  final int tabletColumns;
+  final int desktopColumns;
+
+  const ResponsiveGrid({
+    super.key,
+    required this.children,
+    this.spacing = DesignSystem.space16,
+    this.mobileColumns = 1,
+    this.tabletColumns = 2,
+    this.desktopColumns = 3,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        int columns;
+        if (constraints.maxWidth >= Breakpoints.desktop) {
+          columns = desktopColumns;
+        } else if (constraints.maxWidth >= Breakpoints.tablet) {
+          columns = tabletColumns;
+        } else {
+          columns = mobileColumns;
+        }
+
+        return GridView.count(
+          crossAxisCount: columns,
+          shrinkWrap: true

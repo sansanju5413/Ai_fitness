@@ -86,10 +86,12 @@ class WorkoutRepository {
     await batch.commit();
   }
   
-  // Generate new plan using AI
+  // Generate new plan using AI - does NOT save automatically
+  // Call saveWorkoutPlan() separately after user confirms
   Future<WorkoutPlan> generateNewPlan(
     UserProfile profile, {
     String? userNotes,
+    bool autoSave = false, // Set true to save immediately
   }) async {
     if (_generatorService != null) {
       try {
@@ -97,13 +99,15 @@ class WorkoutRepository {
           profile,
           userNotes: userNotes,
         );
-        // Save the generated plan to Firestore
-        await saveWorkoutPlan(plan);
+        // Only save if autoSave is true
+        if (autoSave) {
+          await saveWorkoutPlan(plan);
+        }
         return plan;
       } catch (e) {
         // Fallback to mock plan
         final mockPlan = _generateMockPlan();
-        if (_userId != null) {
+        if (autoSave && _userId != null) {
           try {
             await saveWorkoutPlan(mockPlan);
           } catch (saveError) {
@@ -116,7 +120,7 @@ class WorkoutRepository {
     // Fallback if no generator service
     await Future.delayed(const Duration(seconds: 2));
     final mockPlan = _generateMockPlan();
-    if (_userId != null) {
+    if (autoSave && _userId != null) {
       try {
         await saveWorkoutPlan(mockPlan);
       } catch (saveError) {

@@ -32,10 +32,14 @@ class _FoodLoggerScreenState extends ConsumerState<FoodLoggerScreen> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _isAnalyzing = false);
       if (mounted) {
+        setState(() => _isAnalyzing = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not analyze meal: $e')),
+          SnackBar(
+            content: Text('AI Analysis Error: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
         );
       }
     }
