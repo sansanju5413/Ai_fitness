@@ -1,9 +1,10 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../session/repositories/session_repository.dart';
+import 'package:ai_fitness_app/core/theme/app_theme.dart';
+import 'package:ai_fitness_app/features/session/repositories/session_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ai_fitness_app/features/session/models/workout_session.dart';
 
 class ActivityGraphCard extends StatelessWidget {
   final AsyncValue<List<WorkoutSession>> sessionsAsync;

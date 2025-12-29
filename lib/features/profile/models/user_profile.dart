@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class UserProfile {
   final String uid;
   final BasicInfo basicInfo;
@@ -6,6 +8,9 @@ class UserProfile {
   final NutritionProfile nutritionProfile;
   final HealthLifestyle healthLifestyle;
   final bool isProfileComplete;
+  final String? lastAssessment;
+  final DateTime? lastAssessmentDate;
+  final bool hasSeenOnboarding;
 
   UserProfile({
     required this.uid,
@@ -15,6 +20,9 @@ class UserProfile {
     required this.nutritionProfile,
     required this.healthLifestyle,
     this.isProfileComplete = false,
+    this.lastAssessment,
+    this.lastAssessmentDate,
+    this.hasSeenOnboarding = false,
   });
 
   Map<String, dynamic> toJson() {
@@ -26,6 +34,9 @@ class UserProfile {
       'nutritionProfile': nutritionProfile.toJson(),
       'healthLifestyle': healthLifestyle.toJson(),
       'isProfileComplete': isProfileComplete,
+      'lastAssessment': lastAssessment,
+      'lastAssessmentDate': lastAssessmentDate != null ? Timestamp.fromDate(lastAssessmentDate!) : null,
+      'hasSeenOnboarding': hasSeenOnboarding,
     };
   }
 
@@ -38,6 +49,11 @@ class UserProfile {
       nutritionProfile: NutritionProfile.fromJson(json['nutritionProfile'] ?? {}),
       healthLifestyle: HealthLifestyle.fromJson(json['healthLifestyle'] ?? {}),
       isProfileComplete: json['isProfileComplete'] ?? false,
+      lastAssessment: json['lastAssessment'],
+      lastAssessmentDate: json['lastAssessmentDate'] != null 
+          ? (json['lastAssessmentDate'] as Timestamp).toDate() 
+          : null,
+      hasSeenOnboarding: json['hasSeenOnboarding'] ?? false,
     );
   }
 }

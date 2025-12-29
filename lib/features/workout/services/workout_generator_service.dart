@@ -46,6 +46,125 @@ class WorkoutGeneratorService extends BaseAiService {
     }
   }
 
+  /// Generate a single day's workout for incremental/streaming generation.
+  /// 
+  /// This allows the UI to show progress as each day is generated.
+  Future<DailyWorkout?> generateSingleDay(
+    UserProfile profile, {
+    required int dayIndex,
+    String? userNotes,
+  }) async {
+    print('[WorkoutGenerator] 💪 Generating day ${dayIndex + 1}...');
+    
+    try {
+      final prompt = _constructSingleDayPrompt(profile, dayIndex, userNotes);
+      final responseText = await generateJsonContent(prompt, maxTokens: 800);
+      
+      if (responseText == null || responseText.isEmpty) {
+        print('[WorkoutGenerator] ⚠️ Empty response for day ${dayIndex + 1}');
+        return null;
+      }
+      
+      final Map<String, dynamic> jsonData = jsonDecode(responseText);
+      final day = DailyWorkout.fromJson(jsonData);
+      print('[WorkoutGenerator] ✅ Day ${dayIndex + 1} generated: ${day.focus}');
+      return day;
+      
+    } catch (e) {
+      print('[WorkoutGenerator] ❌ Error generating day ${dayIndex + 1}: $e');
+      return null;
+    }
+  }
+
+  /// Construct a detailed prompt for generating a single day's workout.
+  String _constructSingleDayPrompt(UserProfile profile, int dayIndex, String? userNotes) {
+    final dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    final dayFocuses = _getDayFocuses(profile.fitnessProfile.primaryGoal);
+    
+    final equipment = profile.fitnessProfile.availableEquipment.isEmpty 
+        ? 'Bodyweight only' 
+        : profile.fitnessProfile.availableEquipment.join(', ');
+    
+    final injuries = profile.healthLifestyle.injuries.isEmpty || profile.healthLifestyle.injuries == 'None'
+        ? 'None'
+        : profile.healthLifestyle.injuries;
+    
+    // Check if this should be a rest day
+    final isRestDay = _shouldBeRestDay(dayIndex, profile.fitnessProfile.fitnessLevel);
+    
+    if (isRestDay) {
+      return '''Generate a REST DAY JSON for ${dayNames[dayIndex]}:
+{"dayOfWeek":"${dayNames[dayIndex]}","focus":"Rest & Recovery","durationMinutes":0,"isRestDay":true,"blocks":[]}
+Return ONLY this JSON, no explanation.''';
+    }
+    
+    final extraNotes = (userNotes != null && userNotes.trim().isNotEmpty) ? '\nNotes: $userNotes' : '';
+    
+    return '''Create a structured workout JSON for ${dayNames[dayIndex]} with the following profile:
+- Age: ${profile.basicInfo.age}
+- Fitness Level: ${profile.fitnessProfile.fitnessLevel}
+- Primary Goal: ${profile.fitnessProfile.primaryGoal}
+- Focus Area: ${dayFocuses[dayIndex]}
+- Available Equipment: $equipment
+- Injuries/Limitations: $injuries
+$extraNotes
+
+JSON STRUCTURE (Return ONLY the JSON):
+{
+  "dayOfWeek": "${dayNames[dayIndex]}",
+  "focus": "${dayFocuses[dayIndex]}",
+  "durationMinutes": 45,
+  "isRestDay": false,
+  "blocks": [
+    {
+      "type": "Warmup",
+      "exercises": [
+        {"name": "Dynamic Stretch", "sets": 2, "reps": 10, "restSeconds": 30, "notes": "Gentle movement"}
+      ]
+    },
+    {
+      "type": "Main",
+      "exercises": [
+        {"name": "Primary Exercise", "sets": 3, "reps": 12, "restSeconds": 60, "notes": "Focus on form"}
+      ]
+    },
+    {
+      "type": "Cooldown",
+      "exercises": [
+        {"name": "Static Stretch", "sets": 1, "reps": 1, "durationSeconds": 30, "restSeconds": 0, "notes": "Relax"}
+      ]
+    }
+  ]
+}
+
+IMPORTANT: Ensure "blocks" is a list containing "Warmup", "Main", and "Cooldown" types. Each block MUST have an "exercises" list. Return valid JSON only.''';
+  }
+
+  /// Get focus areas for each day based on goal
+  List<String> _getDayFocuses(String goal) {
+    switch (goal.toLowerCase()) {
+      case 'weight loss':
+        return ['Full Body HIIT', 'Rest', 'Upper Body', 'Cardio', 'Lower Body', 'Active Recovery', 'Rest'];
+      case 'muscle building':
+        return ['Chest & Triceps', 'Back & Biceps', 'Rest', 'Legs & Glutes', 'Shoulders & Arms', 'Full Body', 'Rest'];
+      case 'strength training':
+        return ['Push Day', 'Pull Day', 'Rest', 'Legs', 'Upper Body', 'Rest', 'Active Recovery'];
+      case 'flexibility':
+        return ['Full Body Stretch', 'Yoga Flow', 'Rest', 'Lower Body Mobility', 'Upper Body Mobility', 'Active Recovery', 'Rest'];
+      default:
+        return ['Full Body', 'Upper Body', 'Rest', 'Lower Body', 'Core & Cardio', 'Active Recovery', 'Rest'];
+    }
+  }
+
+  /// Determine if a day should be a rest day based on index and fitness level
+  bool _shouldBeRestDay(int dayIndex, String fitnessLevel) {
+    // Beginners get more rest
+    if (fitnessLevel == 'Beginner') {
+      return dayIndex == 1 || dayIndex == 3 || dayIndex == 6; // Tue, Thu, Sun
+    }
+    // Others get 2 rest days
+    return dayIndex == 2 || dayIndex == 6; // Wed, Sun
+  }
   String _constructEnhancedPrompt(
     UserProfile profile, {
     String? userNotes,

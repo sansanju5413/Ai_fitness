@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../../../core/theme/app_theme.dart';
-import '../providers/session_provider.dart';
-import '../widgets/exercise_tracker_card.dart';
-import '../widgets/rest_timer_overlay.dart';
-import '../../workout/models/workout_plan.dart';
+import 'package:ai_fitness_app/core/theme/app_theme.dart';
+import 'package:ai_fitness_app/features/session/providers/session_provider.dart';
+import 'package:ai_fitness_app/features/session/widgets/exercise_tracker_card.dart';
+import 'package:ai_fitness_app/features/session/widgets/rest_timer_overlay.dart';
+import 'package:ai_fitness_app/features/workout/models/workout_plan.dart';
 
 class WorkoutSessionScreen extends ConsumerStatefulWidget {
   final DailyWorkout workout; // Passed from plan screen

@@ -1,9 +1,10 @@
 import 'dart:async';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../workout/models/workout_plan.dart';
-import '../repositories/session_repository.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ai_fitness_app/features/workout/models/workout_plan.dart';
+import 'package:ai_fitness_app/features/session/models/workout_session.dart';
+import 'package:ai_fitness_app/features/session/repositories/session_repository.dart';
 
 // --- State Model ---
 class SessionState {
@@ -15,8 +16,9 @@ class SessionState {
   final bool isResting;
   final int restTimeRemaining;
   final bool isCompleted;
-  final Map<String, List<Map<String, dynamic>>> logs; // {'exercise_name': [{'set': 1, 'reps': 10, 'weight': 50}]}
+  final Map<String, List<Map<String, dynamic>>> logs;
   final DateTime? startTime;
+  final String? sessionId;
 
   SessionState({
     this.activeWorkout,
@@ -29,6 +31,7 @@ class SessionState {
     this.isCompleted = false,
     this.logs = const {},
     this.startTime,
+    this.sessionId,
   });
 
   SessionState copyWith({
@@ -42,6 +45,7 @@ class SessionState {
     bool? isCompleted,
     Map<String, List<Map<String, dynamic>>>? logs,
     DateTime? startTime,
+    String? sessionId,
   }) {
     return SessionState(
       activeWorkout: activeWorkout ?? this.activeWorkout,
@@ -54,6 +58,7 @@ class SessionState {
       isCompleted: isCompleted ?? this.isCompleted,
       logs: logs ?? this.logs,
       startTime: startTime ?? this.startTime,
+      sessionId: sessionId ?? this.sessionId,
     );
   }
 }
@@ -68,11 +73,72 @@ class SessionNotifier extends StateNotifier<SessionState> {
 
   // Start Session
   void startSession(DailyWorkout workout) {
+     final sessionId = 'sess_${DateTime.now().millisecondsSinceEpoch}';
      state = SessionState(
        activeWorkout: workout,
        startTime: DateTime.now(),
+       sessionId: sessionId,
      );
      _startWorkoutTimer();
+     _autoSave();
+  }
+
+  Future<void> checkAndResumeSession() async {
+    if (_sessionRepository == null) return;
+    
+    final activeSession = await _sessionRepository.getActiveSession();
+    if (activeSession != null && !activeSession.isCompleted) {
+      // Find the workout in the current plan or just use the one from the session
+      // For now, we assume the session carries the necessary context or we might need to fetch the plan.
+      // Since DailyWorkout doesn't have the full plan context here, we might need a better way.
+      // However, for resume, we can just rebuild the state.
+      
+      // We need to find where they were. This might require storing block/exercise indices in WorkoutSession.
+      // Let's update WorkoutSession model to include these.
+      
+      // For now, let's just restore the basic info.
+      state = SessionState(
+        activeWorkout: null, // We need to handle this
+        startTime: activeSession.startTime,
+        sessionId: activeSession.id,
+        elapsedDuration: activeSession.duration,
+        logs: activeSession.exerciseLogs,
+      );
+      _startWorkoutTimer();
+    }
+  }
+
+  Future<void> _autoSave() async {
+    if (_sessionRepository == null || state.activeWorkout == null || state.sessionId == null) return;
+
+    final session = WorkoutSession(
+      id: state.sessionId!,
+      userId: FirebaseAuth.instance.currentUser?.uid ?? '',
+      workoutDay: state.activeWorkout!.dayOfWeek,
+      workoutFocus: state.activeWorkout!.focus,
+      startTime: state.startTime ?? DateTime.now(),
+      duration: state.elapsedDuration,
+      exerciseLogs: state.logs,
+      isCompleted: state.isCompleted,
+      currentBlockIndex: state.currentBlockIndex,
+      currentExerciseIndex: state.currentExerciseIndex,
+    );
+
+    await _sessionRepository.saveOngoingSession(session);
+  }
+
+  Future<void> resumeSession(WorkoutSession session, DailyWorkout workout) async {
+    state = SessionState(
+      activeWorkout: workout,
+      startTime: session.startTime,
+      sessionId: session.id,
+      elapsedDuration: session.duration,
+      logs: session.exerciseLogs,
+      currentBlockIndex: session.currentBlockIndex,
+      currentExerciseIndex: session.currentExerciseIndex,
+      currentSetNumber: 1, // We could also store this if needed
+    );
+    _startWorkoutTimer();
   }
 
   void _startWorkoutTimer() {
@@ -116,6 +182,7 @@ class SessionNotifier extends StateNotifier<SessionState> {
     });
 
     state = state.copyWith(logs: newLogs);
+    _autoSave();
 
     // Progression Logic
     if (state.currentSetNumber < currentExercise.sets) {
@@ -254,21 +321,26 @@ class SessionNotifier extends StateNotifier<SessionState> {
     _workoutTimer?.cancel();
     _restTimer?.cancel();
     
-    // Save session to Firebase if repository is available
     if (_sessionRepository != null && 
         state.activeWorkout != null && 
         state.startTime != null &&
-        state.logs.isNotEmpty) {
+        state.sessionId != null) {
       try {
-        await _sessionRepository.saveWorkoutSession(
-          workout: state.activeWorkout!,
+        final session = WorkoutSession(
+          id: state.sessionId!,
+          userId: FirebaseAuth.instance.currentUser?.uid ?? '',
+          workoutDay: state.activeWorkout!.dayOfWeek,
+          workoutFocus: state.activeWorkout!.focus,
           startTime: state.startTime!,
+          endTime: DateTime.now(),
           duration: state.elapsedDuration,
           exerciseLogs: state.logs,
+          isCompleted: true,
         );
+        
+        await _sessionRepository.saveWorkoutSession(session);
       } catch (saveError) {
-        // ignore: empty_catches
-        // Log error but don't prevent session completion
+        print('[SessionNotifier] Error finishing session: $saveError');
       }
     }
     

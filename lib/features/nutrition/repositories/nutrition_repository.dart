@@ -77,14 +77,70 @@ class NutritionRepository {
         );
       }
 
-      final updated = MealLog(
+      tx.set(docRef, MealLog(
         id: current.id,
         userId: current.userId,
         date: current.date,
         meals: [...current.meals, meal],
-      );
+      ).toJson());
+    });
+  }
 
-      tx.set(docRef, updated.toJson());
+  /// Update an existing meal in a day's log.
+  Future<void> updateMeal(Meal updatedMeal) async {
+    final userId = _userId;
+    if (userId == null) return;
+
+    final normalized = DateTime(updatedMeal.time.year, updatedMeal.time.month, updatedMeal.time.day);
+    final docRef = _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('foodLogs')
+        .doc(_docId(normalized));
+
+    await _firestore.runTransaction((tx) async {
+      final snap = await tx.get(docRef);
+      if (!snap.exists || snap.data() == null) return;
+
+      final current = MealLog.fromJson({...snap.data()!, 'id': snap.id, 'userId': userId});
+      final updatedMeals = current.meals.map((m) {
+        return m.id == updatedMeal.id ? updatedMeal : m;
+      }).toList();
+
+      tx.set(docRef, MealLog(
+        id: current.id,
+        userId: current.userId,
+        date: current.date,
+        meals: updatedMeals,
+      ).toJson());
+    });
+  }
+
+  /// Delete a meal from a day's log.
+  Future<void> deleteMeal(String mealId, DateTime date) async {
+    final userId = _userId;
+    if (userId == null) return;
+
+    final normalized = DateTime(date.year, date.month, date.day);
+    final docRef = _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('foodLogs')
+        .doc(_docId(normalized));
+
+    await _firestore.runTransaction((tx) async {
+      final snap = await tx.get(docRef);
+      if (!snap.exists || snap.data() == null) return;
+
+      final current = MealLog.fromJson({...snap.data()!, 'id': snap.id, 'userId': userId});
+      final updatedMeals = current.meals.where((m) => m.id != mealId).toList();
+
+      tx.set(docRef, MealLog(
+        id: current.id,
+        userId: current.userId,
+        date: current.date,
+        meals: updatedMeals,
+      ).toJson());
     });
   }
 }

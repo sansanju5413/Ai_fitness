@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/workout_plan.dart';
+import '../models/generation_progress.dart';
 import '../services/workout_generator_service.dart';
 import '../../profile/models/user_profile.dart';
 
@@ -20,9 +21,9 @@ class WorkoutRepository {
 
   String? get _userId => _auth.currentUser?.uid;
 
-  Future<WorkoutPlan?> getCurrentPlan() async {
+  Future<WorkoutPlan?> getCurrentPlan({bool useMockFallback = false}) async {
     if (_userId == null) {
-      return _generateMockPlan();
+      return useMockFallback ? _generateMockPlan() : null;
     }
 
     try {
@@ -43,11 +44,28 @@ class WorkoutRepository {
         return WorkoutPlan.fromJson(planData);
       }
 
-      // If no active plan found, return mock plan
-      return _generateMockPlan();
+      // If no active plan, check for drafts
+      final draftsSnapshot = await _firestore
+          .collection('users')
+          .doc(_userId)
+          .collection('workout_plans')
+          .where('isDraft', isEqualTo: true)
+          .orderBy('createdAt', descending: true)
+          .limit(1)
+          .get();
+
+      if (draftsSnapshot.docs.isNotEmpty) {
+        final planData = draftsSnapshot.docs.first.data();
+        planData['id'] = draftsSnapshot.docs.first.id;
+        planData['userId'] = _userId!;
+        return WorkoutPlan.fromJson(planData);
+      }
+
+      // If no active or draft plan found, return mock plan only if requested
+      return useMockFallback ? _generateMockPlan() : null;
     } catch (e) {
-      // Fallback to mock plan on error
-      return _generateMockPlan();
+      // Fallback to mock plan on error only if requested
+      return useMockFallback ? _generateMockPlan() : null;
     }
   }
 
@@ -72,6 +90,7 @@ class WorkoutRepository {
     // Save new plan as active
     final planData = plan.toJson();
     planData['isActive'] = true;
+    planData['isDraft'] = false; // Once saved, it's no longer a draft
     planData['createdAt'] = FieldValue.serverTimestamp();
 
     batch.set(
@@ -128,6 +147,59 @@ class WorkoutRepository {
       }
     }
     return mockPlan;
+  }
+
+  Stream<GenerationProgress> generateNewPlanStream(UserProfile profile, {String? userNotes}) async* {
+    yield GenerationProgress.initial();
+    
+    if (_generatorService == null) {
+      yield GenerationProgress.error('AI Generator service not available');
+      return;
+    }
+
+    try {
+      // The service handles granular updates if it returned a stream, 
+      // but here it returns a Future, so we provide high-level updates.
+      final plan = await _generatorService!.generatePlan(profile, userNotes: userNotes);
+      
+      yield GenerationProgress.validating();
+      
+      // Save as draft
+      await saveDraftPlan(plan);
+      
+      yield GenerationProgress.complete(plan);
+      
+    } catch (e) {
+      print('[WorkoutRepository] Error in generation stream: $e');
+      yield GenerationProgress.error(e.toString());
+    }
+  }
+
+  /// Save a plan as a draft (not active)
+  Future<void> saveDraftPlan(WorkoutPlan plan) async {
+    if (_userId == null) return;
+    
+    final planData = plan.toJson();
+    planData['isActive'] = false; // Drafts are not active
+    planData['isDraft'] = true;
+    planData['createdAt'] = FieldValue.serverTimestamp();
+
+    await _firestore
+        .collection('users')
+        .doc(_userId)
+        .collection('workout_plans')
+        .doc(plan.id)
+        .set(planData);
+  }
+
+  Future<void> deleteDraftPlan(String planId) async {
+    if (_userId == null) return;
+    await _firestore
+        .collection('users')
+        .doc(_userId)
+        .collection('workout_plans')
+        .doc(planId)
+        .delete();
   }
 
   WorkoutPlan _generateMockPlan() {
@@ -344,5 +416,5 @@ final workoutRepositoryProvider = Provider<WorkoutRepository>((ref) {
 });
 
 final currentWorkoutPlanProvider = FutureProvider<WorkoutPlan?>((ref) async {
-  return ref.read(workoutRepositoryProvider).getCurrentPlan();
+  return ref.read(workoutRepositoryProvider).getCurrentPlan(useMockFallback: false);
 });

@@ -1,0 +1,1620 @@
+AI FITNESS APP - COMPLETE ANALYSIS & SOLUTIONS
+================================================================================
+Analysis Date: December 24, 2024
+Analyzed By: Core App Developer Analysis
+Focus: AI Service Integration, UI/UX Issues, Loading States & User Experience
+================================================================================
+
+TABLE OF CONTENTS
+================================================================================
+1. OPENROUTER AI SERVICE - CURRENT STATE & ISSUES
+2. CRITICAL UI/UX PROBLEMS - LOADING STATES & USER FEEDBACK
+3. WORKOUT PLAN GENERATION FLOW - MAJOR ISSUES
+4. STATE MANAGEMENT & DATA FLOW PROBLEMS
+5. AI SERVICES - NUTRITION & FOOD ANALYSIS ISSUES
+6. MISSING FEATURES & INCOMPLETE IMPLEMENTATIONS
+7. DETAILED SOLUTIONS FOR EACH PROBLEM
+8. RECOMMENDED IMPLEMENTATION PRIORITY
+================================================================================
+
+
+================================================================================
+SECTION 1: OPENROUTER AI SERVICE - CURRENT STATE & ISSUES
+================================================================================
+
+ANALYSIS OF CURRENT IMPLEMENTATION:
+───────────────────────────────────────────────────────────────────────────────
+Location: lib/core/services/base_ai_service.dart
+
+✅ WHAT'S WORKING:
+- OpenRouter API integration is correctly implemented
+- API endpoint: https://openrouter.ai/api/v1/chat/completions
+- Model: openai/gpt-4o-mini-2024-07-18 (good choice for cost/performance)
+- API key loading from .env file (OPENROUTER_API_KEY)
+- Retry logic with 3 attempts and exponential backoff
+- JSON response validation and cleanup
+- Error handling for rate limits (429) and API errors
+- Proper HTTP headers (Authorization, Content-Type, Referer, X-Title)
+
+❌ CRITICAL PROBLEMS IDENTIFIED:
+
+PROBLEM 1.1: NO STREAMING SUPPORT
+────────────────────────────────────────────────────────────────────────────
+Current State:
+- All AI requests are blocking/synchronous
+- User sees nothing while AI generates response (can take 10-30 seconds)
+- No incremental updates or progress indicators
+- Poor user experience during generation
+
+Impact:
+- User thinks app is frozen/crashed
+- No feedback on AI thinking process
+- Cannot see partial results
+- High abandonment rate during long waits
+
+PROBLEM 1.2: NO PROGRESS CALLBACKS
+────────────────────────────────────────────────────────────────────────────
+Current State:
+- generateJsonContent() returns only final result
+- No way to track progress
+- No intermediate status updates
+- UI layer has no visibility into AI processing
+
+Impact:
+- Cannot show dynamic loading messages
+- Cannot display what AI is currently doing
+- User has no idea how long to wait
+- No way to show \"received X of Y items\" type messages
+
+PROBLEM 1.3: LIMITED CONTEXT/TOKENS FOR COMPLEX PLANS
+────────────────────────────────────────────────────────────────────────────
+Current State:
+- maxTokens: 3000 for workout plans (very limited)
+- maxTokens: 500 for food analysis (okay for simple queries)
+- Prompt is very minimal and lacks detail
+- No token usage tracking or optimization
+
+Impact:
+- AI might truncate workout plans
+- May not generate complete 7-day schedules
+- Limited exercise variety and descriptions
+- Cannot create detailed, personalized plans
+
+PROBLEM 1.4: WEAK ERROR RECOVERY
+────────────────────────────────────────────────────────────────────────────
+Current State:
+- Falls back to generic mock data on any error
+- No detailed error messages to user
+- Doesn't distinguish between different error types
+- User never knows why AI generation failed
+
+Impact:
+- User sees generic fallback plans (not personalized)
+- Cannot troubleshoot API key issues
+- No guidance on fixing problems
+- Poor debugging for developers
+
+
+================================================================================
+SECTION 2: CRITICAL UI/UX PROBLEMS - LOADING STATES & USER FEEDBACK
+================================================================================
+
+🚨 USER'S MAIN COMPLAINT (YOUR SPECIFIC ISSUE):
+───────────────────────────────────────────────────────────────────────────────
+\"When I click 'Generate Plan' button, it just shows 'generating workouts' 
+briefly and then goes away. No proper UI, no loading window, nothing shows 
+what's happening. I want a popup window that shows the AI generating content 
+in real-time, displays what it receives, and then lets me click OK to render 
+it to workout plans.\"
+
+ROOT CAUSE ANALYSIS:
+────────────────────────────────────────────────────────────────────────────
+
+Location: lib/features/workout/screens/workout_plans_screen.dart
+Lines: 177-254 (Generate AI Plan button handler)
+
+CURRENT FLOW:
+1. User clicks AI button (auto_awesome icon)
+2. Shows AlertDialog with CircularProgressIndicator
+3. Calls repository.generateNewPlan(profile)
+4. Waits for complete response (blocking, 10-30 seconds)
+5. If successful, shows preview dialog with plan summary
+6. User clicks \"Save Plan\" to actually save
+
+PROBLEMS WITH CURRENT IMPLEMENTATION:
+
+PROBLEM 2.1: SILENT LOADING PERIOD
+────────────────────────────────────────────────────────────────────────────
+What Happens:
+- Dialog shows \"🏋️ Generating Your Plan...\"
+- No updates during 10-30 second AI generation
+- User sees only spinning circle
+- No progress, no feedback, no intermediate messages
+
+Why It's Bad:
+- User thinks app froze
+- No indication of progress
+- Boring, anxiety-inducing wait
+- Feels broken/unresponsive
+
+User Expectation:
+- See AI \"thinking\" messages
+- Watch plan being built in real-time
+- See each day being generated
+- Progress bar or step-by-step updates
+
+PROBLEM 2.2: NO PREVIEW OF GENERATED CONTENT DURING GENERATION
+────────────────────────────────────────────────────────────────────────────
+What Happens:
+- AI generates complete plan behind the scenes
+- User only sees result AFTER everything is done
+- No chance to see partial results
+- All-or-nothing approach
+
+Why It's Bad:
+- Doesn't build trust in AI
+- User can't see quality until the end
+- No excitement/engagement during wait
+- Feels like black box magic
+
+User Expectation:
+- See exercises being added one by one
+- Watch plan structure being built
+- Preview content as it's generated
+- Feel involved in the creation process
+
+PROBLEM 2.3: PREVIEW DIALOG APPEARS SUDDENLY
+────────────────────────────────────────────────────────────────────────────
+What Happens:
+- After silent wait, suddenly shows plan summary
+- Jarring transition from loading to results
+- Only shows 3 days + \"...and 4 more days\"
+- Limited preview information
+
+Why It's Bad:
+- Abrupt UX change
+- Doesn't showcase full plan
+- User can't review exercises before committing
+- No smooth transition
+
+User Expectation:
+- Smooth transition from generation to preview
+- See full 7-day breakdown
+- Review all exercises
+- Scroll through complete plan before saving
+
+PROBLEM 2.4: NO \"ADD WORKOUT\" SHEET LOADING FEEDBACK
+────────────────────────────────────────────────────────────────────────────
+What Happens:
+- User fills custom workout form
+- Clicks \"Generate Plan\"
+- Sheet closes immediately
+- Shows SnackBar \"Generating personalized workout...\"
+- SnackBar disappears quickly
+- User has no idea what's happening
+
+Why It's Bad:
+- Lost visual context after sheet closes
+- SnackBar too brief and easy to miss
+- No persistent loading indicator
+- User might click button multiple times
+
+User Expectation:
+- Sheet stays open with loading state
+- Or transitions to full-screen loading view
+- Persistent progress indicator
+- Clear status messages
+
+PROBLEM 2.5: ERROR HANDLING UX
+────────────────────────────────────────────────────────────────────────────
+What Happens:
+- On error, shows SnackBar with error message
+- Loading dialog closes
+- User left confused
+- No guidance on what to do next
+
+Why It's Bad:
+- Error message disappears quickly
+- No retry option
+- No troubleshooting help
+- User stuck with no plan
+
+
+================================================================================
+SECTION 3: WORKOUT PLAN GENERATION FLOW - MAJOR ISSUES
+================================================================================
+
+CURRENT ARCHITECTURE ANALYSIS:
+───────────────────────────────────────────────────────────────────────────────
+
+Component Flow:
+UI (Screen) → Repository → Service → API → Response Processing
+
+File: lib/features/workout/repositories/workout_repository.dart
+Method: generateNewPlan()
+
+PROBLEM 3.1: REPOSITORY DOESN'T STREAM UPDATES
+────────────────────────────────────────────────────────────────────────────
+Current Code:
+```dart
+Future<WorkoutPlan> generateNewPlan(
+  UserProfile profile, {
+  String? userNotes,
+  bool autoSave = false,
+}) async {
+  final plan = await _generatorService.generatePlan(profile, userNotes: userNotes);
+  if (autoSave) {
+    await saveWorkoutPlan(plan);
+  }
+  return plan;
+}
+```
+
+Problems:
+- Single Future return (all-or-nothing)
+- No Stream<WorkoutPlan> or Stream<GenerationStatus>
+- Cannot emit intermediate states
+- UI blocked until complete
+
+What's Needed:
+- Stream<GenerationProgress> with status updates
+- Progressive plan building
+- Yield partial results
+- Allow UI to show real-time updates
+
+PROBLEM 3.2: SERVICE GENERATES EVERYTHING AT ONCE
+────────────────────────────────────────────────────────────────────────────
+File: lib/features/workout/services/workout_generator_service.dart
+Method: generatePlan()
+
+Current Code:
+```dart
+Future<WorkoutPlan> generatePlan(UserProfile profile, {String? userNotes}) async {
+  final prompt = _constructEnhancedPrompt(profile, userNotes: userNotes);
+  final responseText = await generateJsonContent(prompt, maxTokens: 3000);
+  final jsonData = jsonDecode(responseText);
+  final plan = _parseWorkoutPlan(jsonData, profile);
+  return plan;
+}
+```
+
+Problems:
+- Single AI call for entire 7-day plan
+- No day-by-day generation
+- Cannot show progress per day
+- All eggs in one basket (if fails, everything fails)
+
+What's Needed:
+- Generate days incrementally (Day 1, then Day 2, etc.)
+- Emit each day as it's created
+- More resilient to errors
+- Better user experience
+
+PROBLEM 3.3: PROMPT TOO MINIMAL
+────────────────────────────────────────────────────────────────────────────
+File: lib/features/workout/services/workout_generator_service.dart
+Method: _constructEnhancedPrompt()
+
+Current Prompt:
+```
+Generate 7-day workout plan JSON for:
+Goal: Weight Loss
+Level: Beginner
+Equipment: Bodyweight only
+
+Format: {...}
+Return ONLY JSON with 7 days...
+```
+
+Problems:
+- Very short and lacks context
+- Doesn't leverage user's full profile
+- Minimal instructions on quality
+- No examples of good exercises
+- Doesn't explain fitness principles
+
+Impact:
+- AI generates generic plans
+- Low quality exercise selection
+- Poor personalization
+- No consideration of injuries/limitations
+
+What's Needed:
+- Rich prompt with user's complete profile
+- Examples of ideal workout structure
+- Specific instructions on exercise quality
+- Consider injuries, equipment, time constraints
+- Guide AI on progressive overload
+
+PROBLEM 3.4: FALLBACK PLAN IS HARDCODED
+────────────────────────────────────────────────────────────────────────────
+File: lib/features/workout/services/workout_generator_service.dart
+Method: _generateEnhancedFallbackPlan()
+
+Problems:
+- Generic \"one size fits all\" fallback
+- Ignores user profile completely
+- Always same exercises
+- Not personalized at all
+
+Impact:
+- User frustrated with generic plan
+- Defeats purpose of AI personalization
+- Should use profile data even in fallback
+
+
+================================================================================
+SECTION 4: STATE MANAGEMENT & DATA FLOW PROBLEMS
+================================================================================
+
+PROBLEM 4.1: PROVIDER DOESN'T AUTO-REFRESH
+────────────────────────────────────────────────────────────────────────────
+File: lib/features/workout/repositories/workout_repository.dart
+
+Current Code:
+```dart
+final currentWorkoutPlanProvider = FutureProvider<WorkoutPlan?>((ref) async {
+  return ref.read(workoutRepositoryProvider).getCurrentPlan();
+});
+```
+
+Problems:
+- FutureProvider caches result
+- Doesn't automatically refresh after generating new plan
+- Must manually call ref.invalidate()
+- Easy to forget invalidation, causing stale UI
+
+Observed in UI Code:
+```dart
+await repository.generateNewPlan(profile);
+if (context.mounted) {
+  ScaffoldMessenger.of(context).showSnackBar(...);
+}
+// No ref.invalidate() here! UI won't update!
+```
+
+Solution:
+- Use StreamProvider or StateNotifierProvider
+- Auto-invalidate after generation
+- Reactive state management
+
+PROBLEM 4.2: DUAL WORKFLOW CONFUSION
+────────────────────────────────────────────────────────────────────────────
+Two places to generate plans:
+
+1. Main Screen AI Button (Lines 177-254):
+   - Shows loading dialog
+   - Generates plan
+   - Shows preview dialog
+   - User clicks \"Save Plan\"
+   - Actually saves to Firestore
+
+2. Add Workout Sheet (Lines 600+):
+   - User fills form
+   - Sheet closes
+   - Shows SnackBar
+   - Generates and saves automatically
+   - No preview step
+
+Problems:
+- Inconsistent user experience
+- Different flows for same action
+- Confusing for users
+- One has preview, one doesn't
+
+PROBLEM 4.3: MOCK DATA FALLBACK TOO AGGRESSIVE
+────────────────────────────────────────────────────────────────────────────
+File: lib/features/workout/repositories/workout_repository.dart
+Method: getCurrentPlan()
+
+Problems:
+- Always returns mock plan if Firestore query fails
+- User never sees real \"no plans\" state
+- Cannot distinguish between:
+  * No plan exists
+  * User not logged in
+  * Firestore error
+  * First-time user
+
+
+================================================================================
+SECTION 5: AI SERVICES - NUTRITION & FOOD ANALYSIS ISSUES
+================================================================================
+
+PROBLEM 5.1: FOOD SERVICE SIMILAR ISSUES TO WORKOUT
+────────────────────────────────────────────────────────────────────────────
+File: lib/features/nutrition/services/ai_food_service.dart
+
+Same Problems as Workout Service:
+- No streaming support
+- Blocking synchronous calls
+- No progress updates
+- Falls back to hardcoded estimates
+
+Additional Issues:
+- Very conservative token limit (500)
+- May not handle complex meals
+- Fallback logic too simplistic
+- Only recognizes few common foods
+
+PROBLEM 5.2: PROMPT QUALITY FOR FOOD ANALYSIS
+────────────────────────────────────────────────────────────────────────────
+Current Prompt Style:
+- Lists example foods
+- Simple format instructions
+- Basic nutritional values
+
+Problems:
+- Doesn't handle compound dishes well
+- No context on portion sizes
+- Doesn't consider cooking methods
+- Limited to simple foods
+
+
+================================================================================
+SECTION 6: MISSING FEATURES & INCOMPLETE IMPLEMENTATIONS
+================================================================================
+
+PROBLEM 6.1: NO REAL-TIME AI CONVERSATION
+────────────────────────────────────────────────────────────────────────────
+Missing:
+- Chatbot interface for workout questions
+- Ask AI about exercise form
+- Get AI suggestions during workout
+- Interactive plan modification
+
+User Expectation:
+- Talk to AI about their plan
+- Ask \"Can I replace squats?\"
+- Get real-time advice
+- Modify plan through conversation
+
+PROBLEM 6.2: NO PROGRESS TRACKING WITH AI INSIGHTS
+────────────────────────────────────────────────────────────────────────────
+Missing:
+- AI analysis of progress data
+- Workout performance insights
+- Recommendations based on completed sessions
+- Adaptive plan adjustments
+
+PROBLEM 6.3: NO IMAGE-BASED FOOD LOGGING
+────────────────────────────────────────────────────────────────────────────
+Missing:
+- Take photo of meal
+- AI analyzes and logs food
+- Visual food diary
+- Modern UX for nutrition tracking
+
+PROBLEM 6.4: NO EXERCISE VIDEO INTEGRATION
+────────────────────────────────────────────────────────────────────────────
+Missing:
+- Exercise demonstration videos
+- Form check videos
+- AI-generated video recommendations
+- YouTube/custom video embedding
+
+
+================================================================================
+SECTION 7: DETAILED SOLUTIONS FOR EACH PROBLEM
+================================================================================
+
+SOLUTION 1: IMPLEMENT STREAMING AI RESPONSES
+───────────────────────────────────────────────────────────────────────────────
+
+WHAT TO CHANGE:
+Create new streaming methods in BaseAiService
+
+New Method Signature:
+```dart
+Stream<GenerationChunk> generateJsonContentStream(
+  String prompt, {
+  int maxTokens = 4096,
+  Function(String)? onProgress,
+}) async* {
+  // Emit progress updates
+  // Yield partial JSON as it comes
+  // Update UI in real-time
+}
+```
+
+Implementation Approach:
+1. OpenRouter supports streaming via SSE (Server-Sent Events)
+2. Add \"stream\": true to request body
+3. Use http.StreamedResponse instead of regular response
+4. Parse SSE chunks as they arrive
+5. Emit each chunk as a GenerationChunk object
+
+Chunk Data Model:
+```dart
+class GenerationChunk {
+  final String content;
+  final bool isComplete;
+  final int tokensUsed;
+  final String status; // \"generating\", \"parsing\", \"validating\", \"complete\"
+}
+```
+
+Benefits:
+- Real-time UI updates
+- Show partial results
+- Better user engagement
+- Can cancel if needed
+
+SOLUTION 2: DYNAMIC LOADING UI WITH REAL-TIME UPDATES
+───────────────────────────────────────────────────────────────────────────────
+
+WHAT TO BUILD:
+New widget: GenerationProgressDialog
+
+Features:
+- Shows current generation step
+- Displays partial plan as it's built
+- Progress bar (0-100%)
+- Status messages that change
+- Animated transitions between states
+- Can be dismissed (with warning)
+
+Dialog Structure:
+```
+┌─────────────────────────────────────────┐
+│  🏋️ Generating Your Workout Plan       │
+│                                         │
+│  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░  60%       │
+│                                         │
+│  ✅ Day 1: Monday - Full Body (Done)   │
+│  ✅ Day 2: Tuesday - Upper Body (Done) │
+│  ⏳ Day 3: Wednesday - Lower Body...   │
+│  ⌛ Day 4: Thursday - Pending           │
+│  ⌛ Day 5: Friday - Pending             │
+│  ⌛ Day 6: Saturday - Pending           │
+│  ⌛ Day 7: Sunday - Pending             │
+│                                         │
+│  Status: Generating exercises for Day 3│
+│                                         │
+│  [Cancel]                   [Minimize] │
+└─────────────────────────────────────────┘
+```
+
+Status Messages:
+- \"🤔 Analyzing your fitness profile...\"
+- \"📝 Creating workout structure...\"
+- \"💪 Selecting exercises for Day 1...\"
+- \"✅ Day 1 complete! Moving to Day 2...\"
+- \"🎯 Optimizing for your goals...\"
+- \"🔧 Fine-tuning rest periods...\"
+- \"✨ Final touches...\"
+- \"🎉 Your plan is ready!\"
+
+Implementation:
+- Use StatefulBuilder inside dialog
+- Listen to generation stream
+- Update dialog state on each chunk
+- Smooth animations between steps
+- Color-coded status indicators
+
+SOLUTION 3: TWO-STAGE GENERATION FLOW
+───────────────────────────────────────────────────────────────────────────────
+
+NEW FLOW:
+
+STAGE 1 - GENERATION (Dynamic Loading Dialog):
+1. User clicks \"Generate Plan\" or \"Generate AI Plan\"
+2. Shows GenerationProgressDialog (full screen overlay)
+3. Displays real-time generation progress
+4. Shows each day being created
+5. Updates status messages dynamically
+6. Shows partial results as they come in
+
+STAGE 2 - PREVIEW & CONFIRM (Detailed Review Dialog):
+1. Generation completes
+2. Smooth transition to preview dialog
+3. Shows complete 7-day plan breakdown:
+   - Day-by-day schedule
+   - Exercise counts per day
+   - Estimated duration
+   - Focus areas
+   - Rest days
+4. Scrollable list of all exercises
+5. Two buttons:
+   - \"🔄 Regenerate\" - Start over with different settings
+   - \"✅ Save Plan\" - Accept and save to Firestore
+
+STAGE 3 - CONFIRMATION:
+1. Shows success message
+2. Navigates to workout plan view
+3. Highlights new plan
+4. Suggests \"Start your first workout\"
+
+Benefits:
+- User sees everything before committing
+- Can review quality
+- Opportunity to regenerate
+- Builds confidence in AI
+- Better decision making
+
+SOLUTION 4: REPOSITORY REFACTOR FOR STREAMING
+───────────────────────────────────────────────────────────────────────────────
+
+CURRENT:
+```dart
+Future<WorkoutPlan> generateNewPlan(UserProfile profile) async {
+  final plan = await service.generatePlan(profile);
+  return plan;
+}
+```
+
+REFACTORED:
+```dart
+Stream<GenerationProgress> generateNewPlanStream(UserProfile profile) async* {
+  yield GenerationProgress(
+    status: 'initializing',
+    message: '🤔 Analyzing your profile...',
+    progress: 0.0,
+  );
+  
+  await Future.delayed(Duration(milliseconds: 500));
+  
+  yield GenerationProgress(
+    status: 'generating',
+    message: '📝 Creating workout structure...',
+    progress: 0.1,
+  );
+  
+  // Generate days incrementally
+  List<DailyWorkout> days = [];
+  for (int i = 0; i < 7; i++) {
+    final day = await _generateSingleDay(profile, i);
+    days.add(day);
+    
+    yield GenerationProgress(
+      status: 'generating',
+      message: '✅ Day ${i + 1} complete!',
+      progress: (i + 1) / 7,
+      partialPlan: days,
+    );
+  }
+  
+  final plan = WorkoutPlan(..., weeklySchedule: days);
+  
+  yield GenerationProgress(
+    status: 'complete',
+    message: '🎉 Your plan is ready!',
+    progress: 1.0,
+    completePlan: plan,
+  );
+}
+
+Future<DailyWorkout> _generateSingleDay(UserProfile profile, int dayIndex) async {
+  // Generate one day at a time
+  // Smaller AI calls, more resilient
+  // Can add variety day by day
+}
+```
+
+Progress Model:
+```dart
+class GenerationProgress {
+  final String status; // initializing, generating, validating, complete, error
+  final String message;
+  final double progress; // 0.0 to 1.0
+  final List<DailyWorkout>? partialPlan;
+  final WorkoutPlan? completePlan;
+  final String? errorMessage;
+}
+```
+
+SOLUTION 5: ENHANCED PROMPT ENGINEERING
+───────────────────────────────────────────────────────────────────────────────
+
+PROBLEM: Current prompts too minimal
+
+NEW PROMPT STRUCTURE:
+
+```dart
+String _constructDetailedPrompt(UserProfile profile, int dayIndex) {
+  return '''
+You are an expert personal trainer creating a workout plan.
+
+USER PROFILE:
+- Name: ${profile.basicInfo.fullName}
+- Age: ${profile.basicInfo.age}
+- Goal: ${profile.fitnessProfile.primaryGoal}
+- Fitness Level: ${profile.fitnessProfile.fitnessLevel}
+- Activity Level: ${profile.fitnessProfile.activityLevel}
+- Equipment: ${profile.fitnessProfile.availableEquipment.join(', ')}
+- Location: ${profile.fitnessProfile.workoutLocation}
+- Preferred Duration: ${profile.fitnessProfile.durationPreference}
+- Injuries/Limitations: ${profile.healthLifestyle.injuries}
+
+DAY ${dayIndex + 1} WORKOUT:
+Focus: ${_getDayFocus(dayIndex, profile.fitnessProfile.primaryGoal)}
+
+REQUIREMENTS:
+1. Create a complete workout with 3 blocks: Warmup, Main, Cooldown
+2. Each exercise must include:
+   - Exact name (e.g., \"Barbell Back Squat\")
+   - Sets (2-5)
+   - Reps (5-20) or duration in seconds
+   - Rest period (20-180 seconds)
+   - Clear form notes
+   - 3-5 step-by-step instructions
+3. Warmup: 5-10 minutes, 2-3 exercises
+4. Main: ${_getMainDuration(profile)}, 4-6 exercises
+5. Cooldown: 5-10 minutes, 1-2 stretches
+
+EXERCISE SELECTION RULES:
+- Use only equipment: ${profile.fitnessProfile.availableEquipment.join(', ')}
+- Avoid: ${profile.healthLifestyle.injuries}
+- Progressive difficulty based on ${profile.fitnessProfile.fitnessLevel} level
+- Focus on ${profile.fitnessProfile.primaryGoal}
+
+OUTPUT FORMAT (STRICT JSON):
+{
+  \"dayOfWeek\": \"Monday\",
+  \"focus\": \"Full Body Strength\",
+  \"durationMinutes\": 45,
+  \"isRestDay\": false,
+  \"blocks\": [
+    {
+      \"type\": \"Warmup\",
+      \"exercises\": [
+        {
+          \"name\": \"Jumping Jacks\",
+          \"sets\": 2,
+          \"reps\": 20,
+          \"restSeconds\": 30,
+          \"notes\": \"Light cardio to warm up\",
+          \"steps\": [
+            \"Stand with feet together, arms at sides\",
+            \"Jump while spreading legs and raising arms overhead\",
+            \"Jump back to starting position\",
+            \"Keep steady pace, breathe naturally\"
+          ]
+        }
+      ]
+    },
+    {
+      \"type\": \"Main\",
+      \"exercises\": [...]
+    },
+    {
+      \"type\": \"Cooldown\",
+      \"exercises\": [...]
+    }
+  ]
+}
+
+IMPORTANT: Return ONLY valid JSON, no markdown, no explanation.
+''';
+}
+```
+
+Benefits:
+- Much more detailed prompts
+- Better AI understanding
+- Personalized to user
+- Considers all constraints
+- Higher quality outputs
+
+SOLUTION 6: ERROR HANDLING & USER FEEDBACK
+───────────────────────────────────────────────────────────────────────────────
+
+CURRENT: Shows generic error SnackBar
+
+NEW APPROACH:
+
+Error Types:
+1. API Key Missing/Invalid
+2. Rate Limit Hit
+3. Network Error
+4. Invalid Response
+5. Timeout
+
+Error Handling Dialog:
+```
+┌─────────────────────────────────────────┐
+│  ⚠️ Generation Failed                   │
+│                                         │
+│  We couldn't create your workout plan. │
+│                                         │
+│  Reason: API rate limit reached         │
+│                                         │
+│  What to do:                           │
+│  • Wait 1 minute and try again         │
+│  • Use a pre-made workout plan         │
+│  • Contact support if this persists    │
+│                                         │
+│  [Try Again]    [Use Preset Plan]      │
+└─────────────────────────────────────────┘
+```
+
+Retry Logic:
+- Automatic retry for network errors (3 times)
+- Show retry countdown to user
+- Exponential backoff
+- Let user cancel retry
+
+Fallback Options:
+- Offer pre-made plans matching their profile
+- Partial save if some days succeeded
+- Manual plan builder
+- Schedule retry for later
+
+SOLUTION 7: ADD WORKOUT SHEET IMPROVEMENTS
+───────────────────────────────────────────────────────────────────────────────
+
+CURRENT: Sheet closes immediately, shows brief SnackBar
+
+NEW FLOW:
+
+1. User fills form in bottom sheet
+2. Clicks \"Generate Plan\"
+3. Sheet morphs into loading state (doesn't close!)
+4. Shows mini progress indicator inside sheet
+5. Updates sheet content with generation progress
+6. On completion, sheet shows preview
+7. User reviews in sheet, then clicks \"Save\"
+8. Sheet closes, plan is saved
+
+Sheet States:
+
+STATE 1 - Form:
+```
+┌─────────────────────────────────────────┐
+│  Add Workout                            │
+│  Choose goal and preferences            │
+│                                         │
+│  [Goal chips]                           │
+│  [Notes field]                          │
+│                                         │
+│  [Cancel]  [Generate Plan]              │
+└─────────────────────────────────────────┘
+```
+
+STATE 2 - Generating:
+```
+┌─────────────────────────────────────────┐
+│  Generating Plan                        │
+│  ⏳ Creating your workout...            │
+│                                         │
+│  ▓▓▓▓▓▓░░░░░░  45%                     │
+│                                         │
+│  ✅ Day 1: Monday                       │
+│  ✅ Day 2: Tuesday                      │
+│  ⏳ Day 3: Wednesday...                 │
+│                                         │
+│  [Cancel Generation]                    │
+└─────────────────────────────────────────┘
+```
+
+STATE 3 - Preview:
+```
+┌─────────────────────────────────────────┐
+│  Your New Plan                          │
+│  7-Day Weight Loss Program              │
+│                                         │
+│  [Scrollable list of days]             │
+│                                         │
+│  [Regenerate]  [Save Plan]              │
+└─────────────────────────────────────────┘
+```
+
+Benefits:
+- Smoother UX
+- No context loss
+- Everything in one place
+- Clear progress visibility
+
+
+================================================================================
+SECTION 8: RECOMMENDED IMPLEMENTATION PRIORITY
+================================================================================
+
+PHASE 1 - CRITICAL (Implement First):
+───────────────────────────────────────────────────────────────────────────────
+Priority: HIGH 🔴
+Timeline: 2-3 days
+Impact: Fixes user's main complaint
+
+1. Create GenerationProgressDialog widget
+   - Full-screen modal with progress
+   - Real-time status updates
+   - Day-by-day progress display
+   - Cancel button
+   - Smooth animations
+
+2. Refactor WorkoutRepository.generateNewPlan
+   - Change to Stream<GenerationProgress>
+   - Emit progress updates
+   - Generate days incrementally
+   - Handle errors gracefully
+
+3. Update UI to use new streaming approach
+   - Replace simple loading dialog
+   - Connect to generation stream
+   - Update dialog in real-time
+   - Show preview after generation
+
+4. Add detailed preview dialog
+   - Full 7-day breakdown
+   - Scrollable exercise list
+   - Regenerate button
+   - Save confirmation
+
+PHASE 2 - IMPORTANT (Implement Next):
+───────────────────────────────────────────────────────────────────────────────
+Priority: MEDIUM 🟡
+Timeline: 3-4 days
+Impact: Improves AI quality
+
+1. Enhanced prompt engineering
+   - Detailed user profile in prompt
+   - Better instructions for AI
+   - Examples of good exercises
+   - Quality guidelines
+
+2. Day-by-day generation
+   - Split into 7 separate AI calls
+   - More resilient to failures
+   - Better progress tracking
+   - Can partially save
+
+3. Improve error handling
+   - Detailed error messages
+   - Retry mechanisms
+   - Better fallback plans
+   - User guidance
+
+4. Add Workout Sheet improvements
+   - Keep sheet open during generation
+   - In-sheet progress display
+   - Preview before closing
+   - Smoother UX
+
+PHASE 3 - ENHANCEMENTS (Nice to Have):
+───────────────────────────────────────────────────────────────────────────────
+Priority: LOW 🟢
+Timeline: 5-7 days
+Impact: Polish and advanced features
+
+1. Streaming AI responses
+   - Real SSE implementation
+   - Partial result rendering
+   - Token-by-token updates
+   - Advanced UX
+
+2. AI chatbot for questions
+   - Ask about exercises
+   - Modify plan through chat
+   - Form advice
+   - Progression tips
+
+3. Image-based food logging
+   - Camera integration
+   - AI food recognition
+   - Visual diary
+   - Modern UX
+
+4. Video integration
+   - Exercise demos
+   - Form check videos
+   - Embedded player
+   - Curated content
+
+
+================================================================================
+DETAILED IMPLEMENTATION GUIDE FOR PHASE 1
+================================================================================
+
+STEP 1: CREATE PROGRESS MODELS
+───────────────────────────────────────────────────────────────────────────────
+
+Create: lib/features/workout/models/generation_progress.dart
+
+```dart
+/// Represents the current state of workout plan generation
+class GenerationProgress {
+  /// Current generation status
+  final GenerationStatus status;
+  
+  /// User-friendly message to display
+  final String message;
+  
+  /// Progress from 0.0 to 1.0
+  final double progress;
+  
+  /// Partial plan being built (for live preview)
+  final List<DailyWorkout>? partialPlan;
+  
+  /// Complete plan when generation finishes
+  final WorkoutPlan? completePlan;
+  
+  /// Error message if generation failed
+  final String? errorMessage;
+  
+  /// Current day being generated (1-7)
+  final int? currentDay;
+  
+  GenerationProgress({
+    required this.status,
+    required this.message,
+    required this.progress,
+    this.partialPlan,
+    this.completePlan,
+    this.errorMessage,
+    this.currentDay,
+  });
+}
+
+/// Status of the generation process
+enum GenerationStatus {
+  initializing,
+  generatingDay,
+  validating,
+  complete,
+  error,
+  cancelled,
+}
+```
+
+STEP 2: CREATE PROGRESS DIALOG WIDGET
+───────────────────────────────────────────────────────────────────────────────
+
+Create: lib/features/workout/widgets/generation_progress_dialog.dart
+
+```dart
+/// Shows real-time progress of workout plan generation
+/// 
+/// Features:
+/// - Live progress bar (0-100%)
+/// - Status messages that update
+/// - Day-by-day progress checklist
+/// - Partial plan preview
+/// - Cancel button
+/// - Smooth animations
+/// 
+/// Usage:
+/// ```dart
+/// await showDialog(
+///   context: context,
+///   barrierDismissible: false,
+///   builder: (context) => GenerationProgressDialog(
+///     generationStream: repository.generateNewPlanStream(profile),
+///   ),
+/// );
+/// ```
+class GenerationProgressDialog extends StatefulWidget {
+  final Stream<GenerationProgress> generationStream;
+  final VoidCallback? onCancel;
+  
+  const GenerationProgressDialog({
+    required this.generationStream,
+    this.onCancel,
+    super.key,
+  });
+  
+  @override
+  State<GenerationProgressDialog> createState() => _GenerationProgressDialogState();
+}
+
+class _GenerationProgressDialogState extends State<GenerationProgressDialog> {
+  late StreamSubscription<GenerationProgress> _subscription;
+  GenerationProgress? _currentProgress;
+  List<DayProgress> _dayProgress = [];
+  
+  @override
+  void initState() {
+    super.initState();
+    _initializeDayProgress();
+    _listenToStream();
+  }
+  
+  void _initializeDayProgress() {
+    _dayProgress = List.generate(7, (i) => DayProgress(
+      dayNumber: i + 1,
+      dayName: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][i],
+      status: DayStatus.pending,
+    ));
+  }
+  
+  void _listenToStream() {
+    _subscription = widget.generationStream.listen(
+      (progress) {
+        setState(() {
+          _currentProgress = progress;
+          _updateDayProgress(progress);
+          
+          // Close dialog when complete
+          if (progress.status == GenerationStatus.complete) {
+            Future.delayed(Duration(milliseconds: 500), () {
+              if (mounted) {
+                Navigator.of(context).pop(progress.completePlan);
+              }
+            });
+          }
+        });
+      },
+      onError: (error) {
+        setState(() {
+          _currentProgress = GenerationProgress(
+            status: GenerationStatus.error,
+            message: 'Generation failed',
+            progress: 0.0,
+            errorMessage: error.toString(),
+          );
+        });
+      },
+    );
+  }
+  
+  void _updateDayProgress(GenerationProgress progress) {
+    if (progress.currentDay != null) {
+      final dayIndex = progress.currentDay! - 1;
+      
+      // Mark current day as generating
+      _dayProgress[dayIndex] = _dayProgress[dayIndex].copyWith(
+        status: DayStatus.generating,
+      );
+      
+      // Mark previous days as complete
+      for (int i = 0; i < dayIndex; i++) {
+        _dayProgress[i] = _dayProgress[i].copyWith(
+          status: DayStatus.complete,
+        );
+      }
+    }
+    
+    // All days complete
+    if (progress.status == GenerationStatus.complete) {
+      for (int i = 0; i < 7; i++) {
+        _dayProgress[i] = _dayProgress[i].copyWith(
+          status: DayStatus.complete,
+        );
+      }
+    }
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        padding: EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Row(
+              children: [
+                Icon(Icons.auto_awesome, color: AppColors.primary, size: 32),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Generating Your Workout',
+                    style: GoogleFonts.outfit(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            
+            SizedBox(height: 24),
+            
+            // Progress Bar
+            LinearProgressIndicator(
+              value: _currentProgress?.progress ?? 0.0,
+              backgroundColor: AppColors.surfaceLight,
+              valueColor: AlwaysStoppedAnimation(AppColors.primary),
+              minHeight: 8,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            
+            SizedBox(height: 8),
+            
+            Text(
+              '${((_currentProgress?.progress ?? 0.0) * 100).toInt()}% Complete',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+              ),
+            ),
+            
+            SizedBox(height: 24),
+            
+            // Status Message
+            Container(
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  _getStatusIcon(_currentProgress?.status),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _currentProgress?.message ?? 'Initializing...',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            SizedBox(height: 16),
+            
+            // Day Progress Checklist
+            Container(
+              constraints: BoxConstraints(maxHeight: 250),
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: _dayProgress.length,
+                itemBuilder: (context, index) {
+                  final day = _dayProgress[index];
+                  return _buildDayProgressItem(day);
+                },
+              ),
+            ),
+            
+            SizedBox(height: 16),
+            
+            // Cancel Button
+            if (_currentProgress?.status != GenerationStatus.complete)
+              TextButton(
+                onPressed: () {
+                  widget.onCancel?.call();
+                  Navigator.of(context).pop();
+                },
+                child: Text('Cancel Generation'),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _getStatusIcon(GenerationStatus? status) {
+    switch (status) {
+      case GenerationStatus.initializing:
+        return CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation(AppColors.primary),
+          strokeWidth: 2,
+        );
+      case GenerationStatus.generatingDay:
+        return Icon(Icons.psychology, color: AppColors.primary);
+      case GenerationStatus.validating:
+        return Icon(Icons.check_circle_outline, color: AppColors.secondary);
+      case GenerationStatus.complete:
+        return Icon(Icons.check_circle, color: AppColors.secondary);
+      case GenerationStatus.error:
+        return Icon(Icons.error, color: AppColors.accent);
+      default:
+        return SizedBox(width: 24, height: 24);
+    }
+  }
+  
+  Widget _buildDayProgressItem(DayProgress day) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          _getDayStatusIcon(day.status),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Day ${day.dayNumber}: ${day.dayName}',
+              style: TextStyle(
+                color: day.status == DayStatus.complete 
+                    ? AppColors.textPrimary 
+                    : AppColors.textSecondary,
+                fontWeight: day.status == DayStatus.generating 
+                    ? FontWeight.bold 
+                    : FontWeight.normal,
+              ),
+            ),
+          ),
+          if (day.status == DayStatus.complete)
+            Icon(Icons.check, color: AppColors.secondary, size: 16),
+        ],
+      ),
+    );
+  }
+  
+  Widget _getDayStatusIcon(DayStatus status) {
+    switch (status) {
+      case DayStatus.pending:
+        return Icon(Icons.radio_button_unchecked, color: AppColors.textSecondary, size: 20);
+      case DayStatus.generating:
+        return SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation(AppColors.primary),
+            strokeWidth: 2,
+          ),
+        );
+      case DayStatus.complete:
+        return Icon(Icons.check_circle, color: AppColors.secondary, size: 20);
+    }
+  }
+  
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
+  }
+}
+
+class DayProgress {
+  final int dayNumber;
+  final String dayName;
+  final DayStatus status;
+  
+  DayProgress({
+    required this.dayNumber,
+    required this.dayName,
+    required this.status,
+  });
+  
+  DayProgress copyWith({
+    int? dayNumber,
+    String? dayName,
+    DayStatus? status,
+  }) {
+    return DayProgress(
+      dayNumber: dayNumber ?? this.dayNumber,
+      dayName: dayName ?? this.dayName,
+      status: status ?? this.status,
+    );
+  }
+}
+
+enum DayStatus {
+  pending,
+  generating,
+  complete,
+}
+```
+
+STEP 3: REFACTOR WORKOUT REPOSITORY
+───────────────────────────────────────────────────────────────────────────────
+
+Modify: lib/features/workout/repositories/workout_repository.dart
+
+ADD NEW METHOD:
+
+```dart
+/// Generate new workout plan with real-time progress updates
+/// 
+/// Returns a stream that emits progress updates as the plan is generated.
+/// UI can listen to this stream to show live progress.
+/// 
+/// Example:
+/// ```dart
+/// repository.generateNewPlanStream(profile).listen((progress) {
+///   print('${progress.message} - ${progress.progress * 100}%');
+/// });
+/// ```
+Stream<GenerationProgress> generateNewPlanStream(
+  UserProfile profile, {
+  String? userNotes,
+}) async* {
+  try {
+    // Step 1: Initialize
+    yield GenerationProgress(
+      status: GenerationStatus.initializing,
+      message: '🤔 Analyzing your fitness profile...',
+      progress: 0.0,
+    );
+    
+    await Future.delayed(Duration(milliseconds: 500));
+    
+    // Step 2: Generate days incrementally
+    List<DailyWorkout> days = [];
+    
+    for (int i = 0; i < 7; i++) {
+      yield GenerationProgress(
+        status: GenerationStatus.generatingDay,
+        message: '💪 Creating Day ${i + 1}: ${_getDayName(i)}...',
+        progress: i / 7,
+        currentDay: i + 1,
+        partialPlan: days,
+      );
+      
+      try {
+        final day = await _generatorService?.generateSingleDay(
+          profile,
+          dayIndex: i,
+          userNotes: userNotes,
+        );
+        
+        if (day != null) {
+          days.add(day);
+        } else {
+          // Use fallback for this day
+          days.add(_createFallbackDay(i, profile));
+        }
+        
+        yield GenerationProgress(
+          status: GenerationStatus.generatingDay,
+          message: '✅ Day ${i + 1} complete!',
+          progress: (i + 1) / 7,
+          currentDay: i + 1,
+          partialPlan: days,
+        );
+        
+        await Future.delayed(Duration(milliseconds: 300));
+        
+      } catch (e) {
+        print('[WorkoutRepository] Error generating day ${i + 1}: $e');
+        // Use fallback for this day
+        days.add(_createFallbackDay(i, profile));
+      }
+    }
+    
+    // Step 3: Finalize plan
+    yield GenerationProgress(
+      status: GenerationStatus.validating,
+      message: '🔧 Finalizing your workout plan...',
+      progress: 0.95,
+    );
+    
+    final now = DateTime.now();
+    final plan = WorkoutPlan(
+      id: 'ai_plan_${now.millisecondsSinceEpoch}',
+      userId: profile.uid,
+      startDate: now,
+      endDate: now.add(const Duration(days: 7)),
+      goal: profile.fitnessProfile.primaryGoal,
+      weeklySchedule: days,
+    );
+    
+    // Step 4: Complete
+    yield GenerationProgress(
+      status: GenerationStatus.complete,
+      message: '🎉 Your personalized plan is ready!',
+      progress: 1.0,
+      completePlan: plan,
+    );
+    
+  } catch (e) {
+    print('[WorkoutRepository] Error in generation stream: $e');
+    yield GenerationProgress(
+      status: GenerationStatus.error,
+      message: 'Failed to generate workout plan',
+      progress: 0.0,
+      errorMessage: e.toString(),
+    );
+  }
+}
+
+String _getDayName(int index) {
+  return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][index];
+}
+
+DailyWorkout _createFallbackDay(int dayIndex, UserProfile profile) {
+  // Create a simple fallback day based on the profile
+  // This ensures we always have something even if AI fails
+  // (Implementation details...)
+}
+```
+
+STEP 4: UPDATE UI TO USE NEW DIALOG
+───────────────────────────────────────────────────────────────────────────────
+
+Modify: lib/features/workout/screens/workout_plans_screen.dart
+
+REPLACE THE AI BUTTON HANDLER (around line 177):
+
+```dart
+IconButton(
+  icon: const Icon(Icons.auto_awesome, color: AppColors.primary),
+  onPressed: () async {
+    final repository = ref.read(workoutRepositoryProvider);
+    final profileStream = ref.read(profileStreamProvider);
+    final profile = profileStream.valueOrNull ?? _defaultProfile();
+    
+    // Show generation dialog with live progress
+    final WorkoutPlan? generatedPlan = await showDialog<WorkoutPlan>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => GenerationProgressDialog(
+        generationStream: repository.generateNewPlanStream(profile),
+        onCancel: () {
+          // Handle cancellation
+          print('[UI] User cancelled generation');
+        },
+      ),
+    );
+    
+    if (generatedPlan != null && context.mounted) {
+      // Show preview dialog
+      final bool? shouldSave = await showDialog<bool>(
+        context: context,
+        builder: (context) => _PlanPreviewDialog(plan: generatedPlan),
+      );
+      
+      if (shouldSave == true && context.mounted) {
+        try {
+          await repository.saveWorkoutPlan(generatedPlan);
+          ref.invalidate(currentWorkoutPlanProvider);
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Workout plan saved successfully!'),
+              backgroundColor: AppColors.secondary,
+            ),
+          );
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ Failed to save plan: $e'),
+              backgroundColor: AppColors.accent,
+            ),
+          );
+        }
+      }
+    }
+  },
+  tooltip: 'Generate AI Plan',
+),
+```
+
+STEP 5: CREATE PLAN PREVIEW DIALOG
+───────────────────────────────────────────────────────────────────────────────
+
+Create: lib/features/workout/widgets/plan_preview_dialog.dart
+
+```dart
+/// Detailed preview dialog shown after plan generation completes
+/// 
+/// Shows:
+/// - Complete 7-day schedule
+/// - Exercise counts and durations
+/// - Full exercise lists for each day
+/// - Options to regenerate or save
+class _PlanPreviewDialog extends StatelessWidget {
+  final WorkoutPlan plan;
+  
+  const _PlanPreviewDialog({required this.plan});
+  
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: EdgeInsets.all(16),
+      child: Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Column(
+          children: [
+            // Header
+            Padding(
+              padding: EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle, color: AppColors.primary, size: 32),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Your Plan is Ready!',
+                          style: GoogleFonts.outfit(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color:`

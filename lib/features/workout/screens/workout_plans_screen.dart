@@ -10,6 +10,8 @@ import '../repositories/workout_repository.dart';
 import '../../profile/models/user_profile.dart';
 import '../../profile/screens/profile_screen.dart';
 import '../widgets/exercise_detail_view.dart';
+import '../widgets/generation_progress_dialog.dart';
+import '../widgets/plan_preview_dialog.dart';
 
 /// Currently selected workout category filter for the weekly plan.
 final selectedWorkoutCategoryProvider = StateProvider<String>((_) => 'All');
@@ -57,7 +59,7 @@ class WorkoutPlansScreen extends ConsumerWidget {
                                 child: workoutPlanAsync.when(
                                   data: (plan) {
                                     if (plan == null) {
-                                      return _buildEmptyPlanView();
+                                      return _buildEmptyPlanView(context);
                                     }
                                     if (plan.weeklySchedule.isEmpty) {
                                       return const Center(
@@ -90,7 +92,7 @@ class WorkoutPlansScreen extends ConsumerWidget {
                   bottom: 24,
                   right: 24,
                   child: FloatingActionButton.extended(
-                    onPressed: () => _showAddWorkoutSheet(context, ref),
+                    onPressed: () => context.push('/workouts/create'),
                     backgroundColor: AppColors.primary,
                     icon: const Icon(Icons.add, color: Colors.black),
                     label: const Text(
@@ -107,23 +109,59 @@ class WorkoutPlansScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildEmptyPlanView() {
+  Widget _buildEmptyPlanView(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.fitness_center, size: 64, color: AppColors.textSecondary),
-          const SizedBox(height: 16),
-          const Text(
-            'No workout plan found',
-            style: TextStyle(color: AppColors.textPrimary, fontSize: 18),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Generate a new plan to get started',
-            style: TextStyle(color: AppColors.textSecondary),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.surfaceLight),
+              ),
+              child: const Icon(Icons.fitness_center, size: 64, color: AppColors.primary),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Ready for your first plan?',
+              style: GoogleFonts.outfit(
+                color: AppColors.textPrimary,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Generate a personalized AI workout plan or create your own custom schedule.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: () => context.push('/workouts/create'),
+              icon: const Icon(Icons.auto_awesome, color: Colors.black),
+              label: const Text('Generate AI Plan'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: () => context.push('/workouts/create'),
+              child: const Text(
+                'Create Custom Plan',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -202,9 +240,64 @@ class _WorkoutsHeaderState extends ConsumerState<_WorkoutsHeader> {
                 onPressed: () => context.go('/home'),
               ),
               Expanded(
-                child: Text(
-                  'Workouts',
-                  style: Theme.of(context).textTheme.displayMedium?.copyWith(fontSize: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Workouts',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                          ),
+                    ),
+                    Consumer(
+                      builder: (context, ref, child) {
+                        final plan = ref.watch(currentWorkoutPlanProvider).valueOrNull;
+                        return Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                plan?.goal ?? 'Your Training',
+                                style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                                      fontSize: 24,
+                                      height: 1.2,
+                                    ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (plan?.isAiGenerated ?? false) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: AppColors.primary.withOpacity(0.5)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.auto_awesome, color: AppColors.primary, size: 12),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'AI',
+                                      style: GoogleFonts.inter(
+                                        color: AppColors.primary,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ),
               IconButton(
@@ -214,140 +307,7 @@ class _WorkoutsHeaderState extends ConsumerState<_WorkoutsHeader> {
               ),
               IconButton(
                 icon: const Icon(Icons.auto_awesome, color: AppColors.primary),
-                onPressed: () async {
-                  // Show loading dialog
-                  showDialog(
-                    context: context,
-                    barrierDismissible: false,
-                    builder: (ctx) => AlertDialog(
-                      backgroundColor: AppColors.surface,
-                      content: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const CircularProgressIndicator(color: AppColors.primary),
-                          const SizedBox(height: 20),
-                          Text(
-                            '🏋️ Generating Your Plan...',
-                            style: GoogleFonts.outfit(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Creating a personalized 7-day workout',
-                            style: TextStyle(color: AppColors.textSecondary),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-
-                  final repository = ref.read(workoutRepositoryProvider);
-                  try {
-                    final profileStream = ref.read(profileStreamProvider);
-                    final profile = profileStream.valueOrNull ?? _defaultProfile();
-                    final plan = await repository.generateNewPlan(profile);
-                    
-                    if (context.mounted) {
-                      Navigator.pop(context); // Close loading dialog
-                      
-                      // Show preview dialog
-                      showDialog(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          backgroundColor: AppColors.surface,
-                          title: Row(
-                            children: [
-                              const Icon(Icons.check_circle, color: AppColors.primary),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Plan Ready!',
-                                style: GoogleFonts.outfit(
-                                  color: AppColors.textPrimary,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          content: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '📅 7-Day ${plan.goal} Plan',
-                                style: const TextStyle(
-                                  color: AppColors.textPrimary,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              ...plan.weeklySchedule.take(3).map((day) => Padding(
-                                padding: const EdgeInsets.only(bottom: 4),
-                                child: Text(
-                                  '• ${day.dayOfWeek}: ${day.isRestDay ? "Rest Day" : day.focus}',
-                                  style: const TextStyle(color: AppColors.textSecondary),
-                                ),
-                              )),
-                              if (plan.weeklySchedule.length > 3)
-                                const Text(
-                                  '... and 4 more days',
-                                  style: TextStyle(color: AppColors.textSecondary, fontStyle: FontStyle.italic),
-                                ),
-                            ],
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx),
-                              child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
-                            ),
-                            ElevatedButton(
-                              onPressed: () async {
-                                Navigator.pop(ctx);
-                                // Actually save the plan now
-                                try {
-                                  await repository.saveWorkoutPlan(plan);
-                                  ref.invalidate(currentWorkoutPlanProvider);
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('✅ Workout plan saved!'),
-                                        backgroundColor: AppColors.secondary,
-                                      ),
-                                    );
-                                  }
-                                } catch (e) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('❌ Save failed: $e'),
-                                        backgroundColor: AppColors.accent,
-                                      ),
-                                    );
-                                  }
-                                }
-                              },
-                              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-                              child: const Text('Save Plan', style: TextStyle(color: Colors.black)),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
-                      Navigator.pop(context); // Close loading dialog
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('❌ Error: $e'),
-                          backgroundColor: AppColors.accent,
-                        ),
-                      );
-                    }
-                  }
-                },
+                onPressed: () => context.push('/workouts/create'),
                 tooltip: 'Generate AI Plan',
               ),
             ],
@@ -493,6 +453,29 @@ class _DailyWorkoutCard extends StatelessWidget {
 
   const _DailyWorkoutCard({required this.dailyWorkout, required this.dayIndex});
 
+  String _getWorkoutDescription() {
+    if (dailyWorkout.isRestDay) return 'Time to recover and recharge your body.';
+    final exerciseCount = dailyWorkout.blocks.expand((b) => b.exercises).length;
+    return 'A focused ${dailyWorkout.durationMinutes}-minute session featuring $exerciseCount targeted movements.';
+  }
+
+  String _getWorkoutImage() {
+    if (dailyWorkout.imageAsset != null) return dailyWorkout.imageAsset!;
+
+    final focus = dailyWorkout.focus.toLowerCase();
+    if (focus.contains('leg') || focus.contains('lower')) return 'assets/images/download_1.jpg';
+    if (focus.contains('upper') || focus.contains('chest') || focus.contains('arm') || focus.contains('push')) {
+      return 'assets/images/download.jpg';
+    }
+    if (focus.contains('core') || focus.contains('abs') || focus.contains('belly')) return 'assets/images/download_3.jpg';
+    if (focus.contains('cardio') || focus.contains('hiit') || focus.contains('fat')) return 'assets/images/download_2.jpg';
+    if (focus.contains('yoga') || focus.contains('stretch') || focus.contains('mobility') || focus.contains('recovery')) {
+      return 'assets/images/download_4.jpg';
+    }
+
+    return 'assets/images/download.jpg'; // Default
+  }
+
   @override
   Widget build(BuildContext context) {
     if (dailyWorkout.isRestDay) {
@@ -546,9 +529,7 @@ class _DailyWorkoutCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
           image: DecorationImage(
-            image: dailyWorkout.imageAsset != null
-                ? AssetImage(dailyWorkout.imageAsset!)
-                : const AssetImage('assets/images/download.jpg'),
+            image: AssetImage(_getWorkoutImage()),
             fit: BoxFit.cover,
           ),
         ),
@@ -579,9 +560,9 @@ class _DailyWorkoutCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Engage your core with this quick...',
-                style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
-                maxLines: 1,
+                _getWorkoutDescription(),
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 12),
@@ -809,198 +790,6 @@ void _showWorkoutPreview(BuildContext context, DailyWorkout workout) {
   );
 }
 
-Future<void> _showAddWorkoutSheet(BuildContext context, WidgetRef ref) async {
-  final goalOptions = ['Strength', 'Fat Loss', 'Endurance', 'Mobility', 'General Health'];
-  String selectedGoal = goalOptions.first;
-  final notesController = TextEditingController();
-
-  await showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    useRootNavigator: true,
-    backgroundColor: Colors.transparent,
-    builder: (ctx) {
-      return Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.background,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: StatefulBuilder(
-            builder: (ctx, setState) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(height: 12),
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceLight,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Add Workout',
-                          style: GoogleFonts.outfit(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Choose a body goal and share any preferences. AI will generate a guided plan that fits your profile.',
-                          style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
-                        ),
-                        const SizedBox(height: 16),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: goalOptions.map((g) {
-                            final isSelected = g == selectedGoal;
-                            return ChoiceChip(
-                              label: Text(g),
-                              selected: isSelected,
-                              onSelected: (_) => setState(() => selectedGoal = g),
-                              selectedColor: AppColors.primary,
-                              labelStyle: TextStyle(
-                                color: isSelected ? Colors.black : AppColors.textPrimary,
-                              ),
-                              backgroundColor: AppColors.surface,
-                            );
-                          }).toList(),
-                        ),
-                        const SizedBox(height: 16),
-                        TextField(
-                          controller: notesController,
-                          maxLines: 3,
-                          decoration: InputDecoration(
-                            labelText: 'Custom preferences (optional)',
-                            hintText: 'e.g. no jumping, focus on dumbbells and core, 30 mins max...',
-                            filled: true,
-                            fillColor: AppColors.surface,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide.none,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        SafeArea(
-                          top: false,
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton(
-                                  onPressed: () => Navigator.of(ctx).pop(),
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: AppColors.textSecondary,
-                                    side: const BorderSide(color: AppColors.surfaceLight),
-                                    padding: const EdgeInsets.symmetric(vertical: 14),
-                                  ),
-                                  child: const Text('Cancel'),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: ElevatedButton(
-                                  onPressed: () async {
-                                    // Capture values before any async operations
-                                    final notes = notesController.text.trim();
-                                    final repository = ref.read(workoutRepositoryProvider);
-                                    final profileStream = ref.read(profileStreamProvider);
-                                    final baseProfile =
-                                        profileStream.valueOrNull ?? _defaultProfile();
-
-                                    // Create a lightweight customized profile with the selected goal.
-                                    final customizedProfile = UserProfile(
-                                      uid: baseProfile.uid,
-                                      basicInfo: baseProfile.basicInfo,
-                                      bodyMetrics: baseProfile.bodyMetrics,
-                                      fitnessProfile: FitnessProfile(
-                                        primaryGoal: selectedGoal,
-                                        fitnessLevel: baseProfile.fitnessProfile.fitnessLevel,
-                                        activityLevel: baseProfile.fitnessProfile.activityLevel,
-                                        availableEquipment: baseProfile.fitnessProfile.availableEquipment,
-                                        workoutLocation: baseProfile.fitnessProfile.workoutLocation,
-                                        durationPreference: baseProfile.fitnessProfile.durationPreference,
-                                      ),
-                                      nutritionProfile: baseProfile.nutritionProfile,
-                                      healthLifestyle: baseProfile.healthLifestyle,
-                                      isProfileComplete: baseProfile.isProfileComplete,
-                                    );
-
-                                    // Close the sheet first to avoid controller issues
-                                    Navigator.of(ctx).pop();
-
-                                    try {
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(
-                                            content: Text('Generating personalized workout...'),
-                                            backgroundColor: AppColors.primary,
-                                          ),
-                                        );
-                                      }
-
-                                      await repository.generateNewPlan(
-                                        customizedProfile,
-                                        userNotes: notes.isEmpty ? null : notes,
-                                      );
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(
-                                            content: Text('New workout plan ready!'),
-                                            backgroundColor: AppColors.secondary,
-                                          ),
-                                        );
-                                      }
-                                    } catch (e) {
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text('Could not generate plan: $e'),
-                                            backgroundColor: AppColors.accent,
-                                          ),
-                                        );
-                                      }
-                                    }
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primary,
-                                    foregroundColor: Colors.black,
-                                    padding: const EdgeInsets.symmetric(vertical: 14),
-                                  ),
-                                  child: const Text(
-                                    'Generate Plan',
-                                    style: TextStyle(fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-      );
-    },
-  );
-  // Note: Don't dispose notesController manually - it causes crashes when modal rebuilds
-  // Flutter's garbage collector will handle cleanup when the function scope ends
-}
 
 class _PredefinedPlansView extends StatelessWidget {
   const _PredefinedPlansView();

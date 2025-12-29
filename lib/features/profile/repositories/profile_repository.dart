@@ -1,21 +1,26 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:io';
 import '../models/user_profile.dart';
 import '../services/ai_assessment_service.dart';
+import '../../../core/services/storage_service.dart';
 
 class ProfileRepository {
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
   final AiAssessmentService? _assessmentService;
+  final StorageService? _storageService;
 
   ProfileRepository({
     required FirebaseFirestore firestore,
     required FirebaseAuth auth,
     AiAssessmentService? assessmentService,
+    StorageService? storageService,
   })  : _firestore = firestore,
         _auth = auth,
-        _assessmentService = assessmentService;
+        _assessmentService = assessmentService,
+        _storageService = storageService;
 
   String? get _userId => _auth.currentUser?.uid;
 
@@ -78,9 +83,50 @@ class ProfileRepository {
 
   Future<String> generateAiAssessment(UserProfile profile) async {
     if (_assessmentService != null) {
-      return _assessmentService.generateAssessment(profile);
+      final assessment = await _assessmentService.generateAssessment(profile);
+      
+      // Save it back to the profile
+      await saveProfile(UserProfile(
+        uid: profile.uid,
+        basicInfo: profile.basicInfo,
+        bodyMetrics: profile.bodyMetrics,
+        fitnessProfile: profile.fitnessProfile,
+        nutritionProfile: profile.nutritionProfile,
+        healthLifestyle: profile.healthLifestyle,
+        isProfileComplete: profile.isProfileComplete,
+        lastAssessment: assessment,
+        lastAssessmentDate: DateTime.now(),
+        hasSeenOnboarding: profile.hasSeenOnboarding,
+      ));
+      
+      return assessment;
     }
     return 'Detailed assessment is currently unavailable. Please check your internet connection.';
+  }
+
+  Future<void> updateOnboardingStatus(bool hasSeen) async {
+    if (_userId == null) return;
+    await _firestore.collection('users').doc(_userId).update({
+      'hasSeenOnboarding': hasSeen,
+    });
+  }
+
+  Future<String> uploadProfileImage(File file) async {
+    if (_storageService == null || _userId == null) {
+      throw Exception('Storage service not available');
+    }
+
+    final url = await _storageService.uploadProfilePicture(file);
+    
+    // Update profile with new URL in both Firestore and Auth
+    await Future.wait([
+       _firestore.collection('users').doc(_userId).update({
+         'basicInfo.photoUrl': url,
+       }),
+       _auth.currentUser!.updatePhotoURL(url),
+    ]);
+
+    return url;
   }
 }
 
@@ -89,6 +135,7 @@ final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
     firestore: FirebaseFirestore.instance,
     auth: FirebaseAuth.instance,
     assessmentService: ref.watch(aiAssessmentServiceProvider),
+    storageService: ref.watch(storageServiceProvider),
   );
 });
 

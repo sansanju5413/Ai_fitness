@@ -3,9 +3,10 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../profile/models/user_profile.dart';
-import '../../session/repositories/session_repository.dart';
+import 'package:ai_fitness_app/core/theme/app_theme.dart';
+import 'package:ai_fitness_app/features/profile/models/user_profile.dart';
+import 'package:ai_fitness_app/features/session/repositories/session_repository.dart';
+import 'package:ai_fitness_app/features/session/models/workout_session.dart';
 
 class DailyOverviewCard extends StatelessWidget {
   final AsyncValue<UserProfile?> profileAsync;

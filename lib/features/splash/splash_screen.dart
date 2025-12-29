@@ -37,20 +37,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       if (!mounted) return;
 
       final prefs = await SharedPreferences.getInstance();
-      final bool hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
+      final bool localOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
 
       // Navigate based on onboarding, auth, and profile state
       if (!mounted) return;
 
-      if (!hasSeenOnboarding) {
-        context.go('/onboarding');
-        return;
-      }
-
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        if (!mounted) return;
-        context.go('/login');
+        if (!localOnboarding) {
+          context.go('/onboarding');
+        } else {
+          context.go('/login');
+        }
         return;
       }
 
@@ -59,7 +57,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
       if (!mounted) return;
 
-      if (profile == null || !profile.isProfileComplete) {
+      if (profile == null) {
+        context.go('/profile-setup');
+        return;
+      }
+
+      // Check cloud onboarding status
+      if (!profile.hasSeenOnboarding && !localOnboarding) {
+        context.go('/onboarding');
+      } else if (!profile.isProfileComplete) {
         context.go('/profile-setup');
       } else {
         context.go('/home');

@@ -61,6 +61,13 @@ class AuthRepository {
     await _firebaseAuth.sendPasswordResetEmail(email: email);
   }
 
+  Future<void> deleteAccount() async {
+    final user = _firebaseAuth.currentUser;
+    if (user != null) {
+      await user.delete();
+    }
+  }
+
   User? get currentUser => _firebaseAuth.currentUser;
 }
 

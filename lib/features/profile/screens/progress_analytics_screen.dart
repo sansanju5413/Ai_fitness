@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/theme/app_theme.dart';
-import 'profile_screen.dart';
-import '../../nutrition/models/meal.dart';
-import '../../nutrition/repositories/nutrition_repository.dart';
-import '../../session/repositories/session_repository.dart';
+import 'package:ai_fitness_app/core/theme/app_theme.dart';
+import 'package:ai_fitness_app/features/profile/screens/profile_screen.dart';
+import 'package:ai_fitness_app/features/nutrition/models/meal.dart';
+import 'package:ai_fitness_app/features/nutrition/repositories/nutrition_repository.dart';
+import 'package:ai_fitness_app/features/session/repositories/session_repository.dart';
+import 'package:ai_fitness_app/features/session/models/workout_session.dart';
 
 class ProgressAnalyticsScreen extends ConsumerWidget {
   const ProgressAnalyticsScreen({super.key});

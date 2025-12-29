@@ -15,22 +15,25 @@ class BaseAiService {
   
   /// Get API key from environment variables (checks multiple key names)
   static String get _apiKey {
-    // Debug: print all available env keys
-    print('[AI] 🔍 Available env keys: ${dotenv.env.keys.toList()}');
-    
-    // Try multiple possible key names
-    String? apiKey = dotenv.env['OPENROUTER_API_KEY'];
-    apiKey ??= dotenv.env['API_KEY'];
-    apiKey ??= dotenv.env['OPENROUTER_KEY'];
-    
-    if (apiKey == null || apiKey.isEmpty) {
-      print('[AI] ❌ No API key found in .env');
-      print('[AI] 📋 Expected: OPENROUTER_API_KEY=sk-or-v1-...');
-      throw Exception('❌ OPENROUTER_API_KEY not found in .env file. '
-          'Please add: OPENROUTER_API_KEY=your_key_here');
+    // 1. Try dart-define (embedded during build)
+    String apiKey = const String.fromEnvironment('OPENROUTER_API_KEY');
+    if (apiKey.isNotEmpty) {
+      print('[AI] ✅ API key found via dart-define');
+      return apiKey;
+    }
+
+    // 2. Try .env file (bundled as asset)
+    apiKey = dotenv.env['OPENROUTER_API_KEY'] ?? '';
+    if (apiKey.isEmpty) {
+      apiKey = dotenv.env['API_KEY'] ?? '';
     }
     
-    print('[AI] ✅ API key found (${apiKey.substring(0, 10)}...)');
+    if (apiKey.isEmpty) {
+      print('[AI] ❌ No API key found in .env or via dart-define');
+      throw Exception('API Key not found. Please ensure it is in .env or provided via --dart-define=OPENROUTER_API_KEY=your_key');
+    }
+    
+    print('[AI] ✅ API key found in .env (${apiKey.substring(0, 5)}...)');
     return apiKey;
   }
   

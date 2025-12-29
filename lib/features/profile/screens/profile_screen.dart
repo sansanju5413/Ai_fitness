@@ -1,22 +1,63 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/auth_repository.dart';
 import '../repositories/profile_repository.dart';
 import '../models/user_profile.dart';
 
-class ProfileScreen extends ConsumerWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  bool _isUploading = false;
+
+  Future<void> _pickAndUploadImage() async {
+    final picker = ImagePicker();
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 512,
+      maxHeight: 512,
+      imageQuality: 75,
+    );
+
+    if (image == null) return;
+
+    setState(() => _isUploading = true);
+
+    try {
+      await ref.read(profileRepositoryProvider).uploadProfileImage(File(image.path));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile picture updated successfully!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to upload image: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     final profileAsync = ref.watch(profileStreamProvider);
     
     final displayName = user?.displayName ?? "Fitness enthusiast";
     final email = user?.email ?? "user@example.com";
+    final photoUrl = user?.photoURL;
 
     return Scaffold(
       appBar: AppBar(
@@ -41,13 +82,39 @@ class ProfileScreen extends ConsumerWidget {
               Center(
                 child: Column(
                   children: [
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundColor: AppColors.primary,
-                      child: Text(
-                        displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
-                        style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                      ),
+                    Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 50,
+                          backgroundColor: AppColors.primary,
+                          backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
+                          child: photoUrl == null 
+                            ? Text(
+                                displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
+                                style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                              )
+                            : null,
+                        ),
+                        if (_isUploading)
+                          const Positioned.fill(
+                            child: CircularProgressIndicator(color: AppColors.secondary),
+                          ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: GestureDetector(
+                            onTap: _pickAndUploadImage,
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: const BoxDecoration(
+                                color: AppColors.secondary,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     Text(displayName, style: Theme.of(context).textTheme.headlineSmall),

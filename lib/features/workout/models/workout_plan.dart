@@ -7,6 +7,7 @@ class WorkoutPlan {
   final DateTime endDate;
   final String goal;
   final List<DailyWorkout> weeklySchedule;
+  final bool isAiGenerated;
 
   WorkoutPlan({
     required this.id,
@@ -15,6 +16,7 @@ class WorkoutPlan {
     required this.endDate,
     required this.goal,
     required this.weeklySchedule,
+    this.isAiGenerated = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -24,6 +26,7 @@ class WorkoutPlan {
         'endDate': Timestamp.fromDate(endDate),
         'goal': goal,
         'weeklySchedule': weeklySchedule.map((e) => e.toJson()).toList(),
+        'isAiGenerated': isAiGenerated,
       };
 
   factory WorkoutPlan.fromJson(Map<String, dynamic> json) => WorkoutPlan(
@@ -35,6 +38,7 @@ class WorkoutPlan {
         weeklySchedule: (json['weeklySchedule'] as List)
             .map((e) => DailyWorkout.fromJson(e))
             .toList(),
+        isAiGenerated: json['isAiGenerated'] == true,
       );
 }
 
@@ -68,12 +72,12 @@ class DailyWorkout {
       };
 
   factory DailyWorkout.fromJson(Map<String, dynamic> json) => DailyWorkout(
-        dayOfWeek: json['dayOfWeek'] ?? '',
-        focus: json['focus'] ?? '',
-        durationMinutes: json['durationMinutes'] ?? 0,
-        isRestDay: json['isRestDay'] ?? false,
-        isCompleted: json['isCompleted'] ?? false,
-        imageAsset: json['imageAsset'],
+        dayOfWeek: json['dayOfWeek']?.toString() ?? '',
+        focus: json['focus']?.toString() ?? '',
+        durationMinutes: _toInt(json['durationMinutes'], 30),
+        isRestDay: json['isRestDay'] == true || json['isRestDay'] == 'true',
+        isCompleted: json['isCompleted'] == true || json['isCompleted'] == 'true',
+        imageAsset: json['imageAsset']?.toString(),
         blocks: (json['blocks'] as List? ?? [])
             .map((e) => ExerciseBlock.fromJson(e))
             .toList(),
@@ -92,8 +96,8 @@ class ExerciseBlock {
       };
 
   factory ExerciseBlock.fromJson(Map<String, dynamic> json) => ExerciseBlock(
-        type: json['type'] ?? 'Main',
-        exercises: (json['exercises'] as List)
+        type: json['type']?.toString() ?? 'Main',
+        exercises: (json['exercises'] as List? ?? [])
             .map((e) => Exercise.fromJson(e))
             .toList(),
       );
@@ -142,13 +146,21 @@ class Exercise {
       };
 
   factory Exercise.fromJson(Map<String, dynamic> json) => Exercise(
-        name: json['name'] ?? '',
-        sets: json['sets'] ?? 3,
-        reps: json['reps'] ?? 10,
-        durationSeconds: json['durationSeconds'],
-        restSeconds: json['restSeconds'] ?? 60,
-        videoUrl: json['videoUrl'],
-        notes: json['notes'] ?? '',
+        name: json['name']?.toString() ?? '',
+        sets: _toInt(json['sets'], 3),
+        reps: _toInt(json['reps'], 10),
+        durationSeconds: json['durationSeconds'] != null ? _toInt(json['durationSeconds'], 0) : null,
+        restSeconds: _toInt(json['restSeconds'], 60),
+        videoUrl: json['videoUrl']?.toString(),
+        notes: json['notes']?.toString() ?? '',
         steps: (json['steps'] as List?)?.map((e) => e.toString()).toList(),
       );
+}
+
+int _toInt(dynamic value, int defaultValue) {
+  if (value == null) return defaultValue;
+  if (value is int) return value;
+  if (value is double) return value.toInt();
+  if (value is String) return int.tryParse(value) ?? defaultValue;
+  return defaultValue;
 }

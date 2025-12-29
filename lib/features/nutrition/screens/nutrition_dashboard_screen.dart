@@ -113,7 +113,7 @@ class _NutritionContent extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           
-          ...log.meals.map((meal) => _MealCard(meal: meal)),
+          ...log.meals.map((meal) => _MealCard(meal: meal, date: log.date)),
           
           if (log.meals.isEmpty)
              Padding(
@@ -247,42 +247,64 @@ class _MacroBar extends StatelessWidget {
   }
 }
 
-class _MealCard extends StatelessWidget {
+class _MealCard extends ConsumerWidget {
   final Meal meal;
-  const _MealCard({required this.meal});
+  final DateTime date;
+  
+  const _MealCard({required this.meal, required this.date});
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.surfaceLight),
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Dismissible(
+      key: Key('meal_${meal.id}'),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: AppColors.accent,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 24),
+        child: const Icon(Icons.delete_outline, color: Colors.white),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(meal.name, style: Theme.of(context).textTheme.titleMedium),
-              Text('${meal.totalMacros.calories} kcal', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
-            ],
-          ),
-          const Divider(color: AppColors.surfaceLight, height: 24),
-          ...meal.items.map((item) => Padding(
-            padding: const EdgeInsets.only(bottom: 8.0),
-            child: Row(
+      onDismissed: (_) {
+        ref.read(nutritionRepositoryProvider).deleteMeal(meal.id, date);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${meal.name} deleted')),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.surfaceLight),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(item.name, style: const TextStyle(color: AppColors.textSecondary)),
-                Text('${item.quantity} ${item.unit}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                Text(meal.name, style: Theme.of(context).textTheme.titleMedium),
+                Text('${meal.totalMacros.calories} kcal', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
               ],
             ),
-          )),
-        ],
+            const Divider(color: AppColors.surfaceLight, height: 24),
+            ...meal.items.map((item) => Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(item.name, style: const TextStyle(color: AppColors.textSecondary)),
+                  Text('${item.quantity} ${item.unit}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                ],
+              ),
+            )),
+          ],
+        ),
       ),
     ).animate().fadeIn().slideX();
   }

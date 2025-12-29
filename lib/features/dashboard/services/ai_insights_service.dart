@@ -1,17 +1,47 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/services/base_ai_service.dart';
-import '../../profile/models/user_profile.dart';
-import '../../profile/repositories/profile_repository.dart';
-import '../../session/repositories/session_repository.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:ai_fitness_app/core/services/base_ai_service.dart';
+import 'package:ai_fitness_app/features/profile/models/user_profile.dart';
+import 'package:ai_fitness_app/features/profile/repositories/profile_repository.dart';
+import 'package:ai_fitness_app/features/session/repositories/session_repository.dart';
+import 'package:ai_fitness_app/features/session/models/workout_session.dart';
 
 class AiInsightsService extends BaseAiService {
-  AiInsightsService() : super();
+  final FirebaseFirestore _firestore;
+  final FirebaseAuth _auth;
+
+  AiInsightsService(this._firestore, this._auth) : super();
+
+  String? get _userId => _auth.currentUser?.uid;
 
   Future<String> generateDailySuggestion({
     required UserProfile? profile,
     required List<WorkoutSession> recentSessions,
   }) async {
+    if (profile == null || _userId == null) {
+      return 'Complete your profile setup to get personalized AI insights tailored to your fitness goals.';
+    }
+
+    // Check Firestore first for today's suggestion
+    final today = DateTime.now();
+    final dateStr = '${today.year}-${today.month}-${today.day}';
+    
+    try {
+      final doc = await _firestore
+          .collection('users')
+          .doc(_userId)
+          .collection('daily_insights')
+          .doc(dateStr)
+          .get();
+          
+      if (doc.exists && doc.data() != null) {
+        return doc.data()!['suggestion'] as String;
+      }
+    } catch (e) {
+      print('[AiInsightsService] Error checking cache: $e');
+    }
     if (profile == null) {
       return 'Complete your profile setup to get personalized AI insights tailored to your fitness goals.';
     }
@@ -49,15 +79,27 @@ Return ONLY a JSON object:
               .replaceAll('```', '')
               .trim();
         }
-        final Map<String, dynamic> data = jsonDecode(cleanedText);
-        final suggestion = data['suggestion'];
+        final Map<String, dynamic> data = json.decode(cleanedText);
+        final suggestion = data['suggestion'] as String?;
         
-        print('[AiInsightsService] ✅ Suggestion: $suggestion');
-        return suggestion ?? 'Keep pushing toward your ${profile.fitnessProfile.primaryGoal} goal!';
+        if (suggestion != null) {
+          // Save to Firestore
+          await _firestore
+              .collection('users')
+              .doc(_userId)
+              .collection('daily_insights')
+              .doc(dateStr)
+              .set({
+            'suggestion': suggestion,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+          
+          print('[AiInsightsService] ✅ Suggestion saved: $suggestion');
+          return suggestion;
+        }
       }
     } catch (e) {
       print('[AiInsightsService] ❌ Error generating suggestion: $e');
-      // Return static fallback on error instead of crashing
     }
 
     return _getStaticSuggestion(profile, completedSessions);
@@ -78,7 +120,7 @@ Return ONLY a JSON object:
 }
 
 final aiInsightsServiceProvider = Provider<AiInsightsService>((ref) {
-  return AiInsightsService();
+  return AiInsightsService(FirebaseFirestore.instance, FirebaseAuth.instance);
 });
 
 final dailyAiSuggestionProvider = FutureProvider<String>((ref) async {

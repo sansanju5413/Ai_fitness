@@ -1,29 +1,30 @@
 import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
-import '../../features/splash/splash_screen.dart';
-import '../../features/onboarding/onboarding_screen.dart';
-import '../../features/auth/login_screen.dart';
-import '../../features/auth/register_screen.dart';
-import '../../features/auth/forgot_password_screen.dart';
-import '../../features/profile/screens/profile_setup_screen.dart';
-import '../../features/profile/screens/ai_analysis_screen.dart';
-import '../../features/workout/screens/workout_plans_screen.dart';
-import '../../features/workout/screens/exercise_library_screen.dart';
+import 'package:ai_fitness_app/features/splash/splash_screen.dart';
+import 'package:ai_fitness_app/features/onboarding/onboarding_screen.dart';
+import 'package:ai_fitness_app/features/auth/login_screen.dart';
+import 'package:ai_fitness_app/features/auth/register_screen.dart';
+import 'package:ai_fitness_app/features/auth/forgot_password_screen.dart';
+import 'package:ai_fitness_app/features/profile/screens/profile_setup_screen.dart';
+import 'package:ai_fitness_app/features/profile/screens/ai_analysis_screen.dart';
+import 'package:ai_fitness_app/features/workout/screens/workout_plans_screen.dart';
+import 'package:ai_fitness_app/features/workout/screens/exercise_library_screen.dart';
+import 'package:ai_fitness_app/features/workout/screens/workout_create_screen.dart';
 
-import '../../features/dashboard/screens/home_screen.dart';
-import '../../features/session/screens/workout_session_screen.dart';
-import '../../features/session/screens/guided_workout_screen.dart';
-import '../../features/workout/models/workout_plan.dart'; // For DailyWorkout type cast
+import 'package:ai_fitness_app/features/dashboard/screens/home_screen.dart';
+import 'package:ai_fitness_app/features/session/screens/workout_session_screen.dart';
+import 'package:ai_fitness_app/features/session/screens/guided_workout_screen.dart';
+import 'package:ai_fitness_app/features/workout/models/workout_plan.dart';
 
-import '../../features/nutrition/screens/nutrition_dashboard_screen.dart';
-import '../../features/nutrition/screens/food_logger_screen.dart';
+import 'package:ai_fitness_app/features/nutrition/screens/nutrition_dashboard_screen.dart';
+import 'package:ai_fitness_app/features/nutrition/screens/food_logger_screen.dart';
 
-import '../../features/profile/screens/progress_analytics_screen.dart';
-import '../../features/profile/screens/settings_screen.dart';
-import '../../features/profile/screens/profile_screen.dart';
+import 'package:ai_fitness_app/features/profile/screens/progress_analytics_screen.dart';
+import 'package:ai_fitness_app/features/profile/screens/settings_screen.dart';
+import 'package:ai_fitness_app/features/profile/screens/profile_screen.dart';
 
-import '../../features/dashboard/screens/main_scaffold.dart';
-import '../theme/app_theme.dart';
+import 'package:ai_fitness_app/features/dashboard/screens/main_scaffold.dart';
+import 'package:ai_fitness_app/core/theme/app_theme.dart';
 // Placeholder removed
 
 
@@ -102,6 +103,11 @@ final appRouter = GoRouter(
       parentNavigatorKey: _rootNavigatorKey,
       path: '/exercises',
       builder: (context, state) => const ExerciseLibraryScreen(),
+    ),
+    GoRoute(
+      parentNavigatorKey: _rootNavigatorKey,
+      path: '/workouts/create',
+      builder: (context, state) => const WorkoutCreateScreen(),
     ),
     GoRoute(
       parentNavigatorKey: _rootNavigatorKey,
