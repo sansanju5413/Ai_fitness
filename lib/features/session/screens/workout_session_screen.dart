@@ -6,6 +6,7 @@ import 'package:ai_fitness_app/core/theme/app_theme.dart';
 import 'package:ai_fitness_app/features/session/providers/session_provider.dart';
 import 'package:ai_fitness_app/features/session/widgets/exercise_tracker_card.dart';
 import 'package:ai_fitness_app/features/session/widgets/rest_timer_overlay.dart';
+import 'package:ai_fitness_app/features/session/repositories/session_repository.dart';
 import 'package:ai_fitness_app/features/workout/models/workout_plan.dart';
 
 class WorkoutSessionScreen extends ConsumerStatefulWidget {
@@ -70,7 +71,11 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                   ),
                   const SizedBox(height: 32),
                   ElevatedButton(
-                    onPressed: () => context.pop(),
+                    onPressed: () {
+                      // Invalidate providers to ensure fresh data on dashboard
+                      ref.invalidate(workoutSessionsStreamProvider);
+                      context.pop();
+                    },
                     child: const Text('Return to Workouts'),
                   ),
                 ],

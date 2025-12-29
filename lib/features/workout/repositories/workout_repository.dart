@@ -405,6 +405,29 @@ class WorkoutRepository {
       ],
     );
   }
+
+  /// Stream of the currently active workout plan - realtime updates
+  Stream<WorkoutPlan?> watchCurrentPlan() {
+    if (_userId == null) {
+      return Stream.value(null);
+    }
+
+    return _firestore
+        .collection('users')
+        .doc(_userId)
+        .collection('workout_plans')
+        .where('isActive', isEqualTo: true)
+        .orderBy('createdAt', descending: true)
+        .limit(1)
+        .snapshots()
+        .map((snapshot) {
+      if (snapshot.docs.isEmpty) return null;
+      final planData = Map<String, dynamic>.from(snapshot.docs.first.data());
+      planData['id'] = snapshot.docs.first.id;
+      planData['userId'] = _userId!;
+      return WorkoutPlan.fromJson(planData);
+    });
+  }
 }
 
 final workoutRepositoryProvider = Provider<WorkoutRepository>((ref) {
@@ -417,4 +440,9 @@ final workoutRepositoryProvider = Provider<WorkoutRepository>((ref) {
 
 final currentWorkoutPlanProvider = FutureProvider<WorkoutPlan?>((ref) async {
   return ref.read(workoutRepositoryProvider).getCurrentPlan(useMockFallback: false);
+});
+
+/// Realtime stream of the active workout plan
+final currentWorkoutPlanStreamProvider = StreamProvider<WorkoutPlan?>((ref) {
+  return ref.watch(workoutRepositoryProvider).watchCurrentPlan();
 });

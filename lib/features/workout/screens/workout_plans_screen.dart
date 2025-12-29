@@ -21,7 +21,7 @@ class WorkoutPlansScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final workoutPlanAsync = ref.watch(currentWorkoutPlanProvider);
+    final workoutPlanAsync = ref.watch(currentWorkoutPlanStreamProvider);
 
     return DefaultTabController(
       length: 2,
@@ -253,7 +253,7 @@ class _WorkoutsHeaderState extends ConsumerState<_WorkoutsHeader> {
                     ),
                     Consumer(
                       builder: (context, ref, child) {
-                        final plan = ref.watch(currentWorkoutPlanProvider).valueOrNull;
+                        final plan = ref.watch(currentWorkoutPlanStreamProvider).valueOrNull;
                         return Row(
                           children: [
                             Flexible(
