@@ -148,9 +148,6 @@ class _ChatBubble extends StatelessWidget {
                               fontWeight: FontWeight.bold,
                               color: AppColors.primary,
                             ),
-                            listBulleted: GoogleFonts.inter(
-                              color: AppColors.textPrimary,
-                            ),
                           ),
                         )
                       : Text(

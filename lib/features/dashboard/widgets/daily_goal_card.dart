@@ -158,41 +158,42 @@ class DailyGoalCard extends StatelessWidget {
       ),
     ).animate().fadeIn().moveY(begin: 20);
   }
-  Widget _buildErrorState(BuildContext context, String error) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.error_outline, color: AppColors.error),
-              const SizedBox(width: 12),
-              Text(
-                'Sync Error',
-                style: GoogleFonts.outfit(
-                  color: AppColors.error,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+}
+
+Widget _buildErrorState(BuildContext context, String error) {
+  return Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: AppColors.accent.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(24),
+      border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.error_outline, color: AppColors.accent),
+            const SizedBox(width: 12),
+            Text(
+              'Sync Error',
+              style: GoogleFonts.outfit(
+                color: AppColors.accent,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
               ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'We couldn\'t load your workout data: $error',
-            style: GoogleFonts.inter(
-              color: AppColors.error,
-              fontSize: 14,
             ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'We couldn\'t load your workout data: $error',
+          style: GoogleFonts.inter(
+            color: AppColors.accent,
+            fontSize: 14,
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
 }

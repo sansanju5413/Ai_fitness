@@ -199,26 +199,27 @@ class _OverviewTile extends StatelessWidget {
       ),
     ).animate().fadeIn(delay: delay.ms).scale(curve: Curves.easeOutBack);
   }
-  Widget _buildErrorState(BuildContext context, String error) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.error_outline, color: AppColors.error),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'Failed to load activity: $error',
-              style: GoogleFonts.inter(color: AppColors.error, fontSize: 13),
-            ),
+}
+
+Widget _buildErrorState(BuildContext context, String error) {
+  return Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: AppColors.accent.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
+    ),
+    child: Row(
+      children: [
+        const Icon(Icons.error_outline, color: AppColors.accent),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            'Failed to load activity: $error',
+            style: GoogleFonts.inter(color: AppColors.accent, fontSize: 13),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
 }
