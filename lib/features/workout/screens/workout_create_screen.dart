@@ -5,8 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/theme/app_theme.dart';
 import '../models/workout_plan.dart';
+import '../../profile/repositories/profile_repository.dart';
 import '../repositories/workout_repository.dart';
-import '../../profile/screens/profile_screen.dart';
 import '../widgets/generation_progress_dialog.dart';
 
 class WorkoutCreateScreen extends ConsumerStatefulWidget {
@@ -231,7 +231,7 @@ class _WorkoutCreateScreenState extends ConsumerState<WorkoutCreateScreen> {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: day.isRestDay ? AppColors.surfaceLight : AppColors.primary.withOpacity(0.3),
+          color: day.isRestDay ? AppColors.surfaceLight : AppColors.primary.withValues(alpha: 0.3),
         ),
       ),
       child: Column(
@@ -420,7 +420,7 @@ class _WorkoutCreateScreenState extends ConsumerState<WorkoutCreateScreen> {
         color: AppColors.background,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, -5),
           ),

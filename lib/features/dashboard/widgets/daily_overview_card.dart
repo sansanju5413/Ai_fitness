@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ai_fitness_app/core/theme/app_theme.dart';
 import 'package:ai_fitness_app/features/profile/models/user_profile.dart';
-import 'package:ai_fitness_app/features/session/repositories/session_repository.dart';
 import 'package:ai_fitness_app/features/session/models/workout_session.dart';
 
 class DailyOverviewCard extends StatelessWidget {
@@ -20,22 +19,28 @@ class DailyOverviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sessions = sessionsAsync.valueOrNull ?? [];
     final today = DateTime.now();
-    final todayKey = DateTime(today.year, today.month, today.day);
+    final sessions = sessionsAsync.valueOrNull ?? [];
+    final profile = profileAsync.valueOrNull;
+
+    if (sessionsAsync.hasError) {
+      return _buildErrorState(context, sessionsAsync.error.toString());
+    }
 
     final todaySessions = sessions.where((s) {
-      final d = DateTime(s.startTime.year, s.startTime.month, s.startTime.day);
-      return d == todayKey && s.isCompleted;
+      final workoutDate = s.startTime.toLocal();
+      return DateUtils.isSameDay(workoutDate, today) && s.isCompleted;
     }).toList();
 
-    final totalMinutesToday =
-        todaySessions.fold<int>(0, (sum, s) => sum + s.duration.inMinutes);
+    final totalSecondsToday =
+        todaySessions.fold<int>(0, (sum, s) => sum + s.duration.inSeconds);
+
+    final totalMinutesTodayFloat = totalSecondsToday / 60.0;
+    final displayMinutes = totalMinutesTodayFloat.ceil();
 
     // Very rough calories estimate: 8 kcal per active minute
-    final caloriesToday = totalMinutesToday * 8;
+    final caloriesToday = (totalMinutesTodayFloat * 8).round();
 
-    final profile = profileAsync.valueOrNull;
     final waterGoal = profile?.nutritionProfile.waterIntakeGoal ?? 2.0;
 
     return Column(
@@ -79,7 +84,7 @@ class DailyOverviewCard extends StatelessWidget {
               child: _OverviewTile(
                 icon: Icons.timer_outlined,
                 title: 'Workout\nTime',
-                value: totalMinutesToday.toString(),
+                value: displayMinutes.toString(),
                 unit: 'min',
                 color: AppColors.secondary,
                 delay: 100,
@@ -193,5 +198,27 @@ class _OverviewTile extends StatelessWidget {
         ],
       ),
     ).animate().fadeIn(delay: delay.ms).scale(curve: Curves.easeOutBack);
+  }
+  Widget _buildErrorState(BuildContext context, String error) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.error.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, color: AppColors.error),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Failed to load activity: $error',
+              style: GoogleFonts.inter(color: AppColors.error, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

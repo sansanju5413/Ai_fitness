@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ai_fitness_app/core/theme/app_theme.dart';
 import 'package:ai_fitness_app/features/profile/models/user_profile.dart';
-import 'package:ai_fitness_app/features/session/repositories/session_repository.dart';
 import 'package:ai_fitness_app/features/session/models/workout_session.dart';
 
 class DailyGoalCard extends StatelessWidget {
@@ -21,37 +20,35 @@ class DailyGoalCard extends StatelessWidget {
   Widget build(BuildContext context) {
     // Compute a simple "daily goal" based on completed workouts today vs target
     final today = DateTime.now();
-    final todayKey = DateTime(today.year, today.month, today.day);
+    final sessions = sessionsAsync.valueOrNull ?? [];
+    final profile = profileAsync.valueOrNull;
 
-    int completedToday = 0;
-    sessionsAsync.whenData((sessions) {
-      completedToday = sessions
-          .where((s) {
-            final d = DateTime(s.startTime.year, s.startTime.month, s.startTime.day);
-            return d == todayKey && s.isCompleted;
-          })
-          .length;
-    });
+    if (sessionsAsync.hasError) {
+      return _buildErrorState(context, sessionsAsync.error.toString());
+    }
+
+    final completedToday = sessions.where((s) {
+      final workoutDate = s.startTime.toLocal();
+      return DateUtils.isSameDay(workoutDate, today) && s.isCompleted;
+    }).length;
 
     int targetPerWeek = 4;
-    profileAsync.whenData((profile) {
-      if (profile != null) {
-        // Rough mapping from fitness level to weekly target
-        switch (profile.fitnessProfile.fitnessLevel.toLowerCase()) {
-          case 'beginner':
-            targetPerWeek = 3;
-            break;
-          case 'intermediate':
-            targetPerWeek = 4;
-            break;
-          case 'advanced':
-            targetPerWeek = 5;
-            break;
-          default:
-            targetPerWeek = 4;
-        }
+    if (profile != null) {
+      // Rough mapping from fitness level to weekly target
+      switch (profile.fitnessProfile.fitnessLevel.toLowerCase()) {
+        case 'beginner':
+          targetPerWeek = 3;
+          break;
+        case 'intermediate':
+          targetPerWeek = 4;
+          break;
+        case 'advanced':
+          targetPerWeek = 5;
+          break;
+        default:
+          targetPerWeek = 4;
       }
-    });
+    }
 
     // Convert weekly target to a soft daily goal
     final double dailyTarget = targetPerWeek / 5; // assume 5 active days
@@ -160,5 +157,42 @@ class DailyGoalCard extends StatelessWidget {
         ],
       ),
     ).animate().fadeIn().moveY(begin: 20);
+  }
+  Widget _buildErrorState(BuildContext context, String error) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.error.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.error_outline, color: AppColors.error),
+              const SizedBox(width: 12),
+              Text(
+                'Sync Error',
+                style: GoogleFonts.outfit(
+                  color: AppColors.error,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'We couldn\'t load your workout data: $error',
+            style: GoogleFonts.inter(
+              color: AppColors.error,
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

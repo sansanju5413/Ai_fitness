@@ -7,11 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../models/workout_plan.dart';
 import '../models/predefined_workouts.dart';
 import '../repositories/workout_repository.dart';
-import '../../profile/models/user_profile.dart';
-import '../../profile/screens/profile_screen.dart';
 import '../widgets/exercise_detail_view.dart';
-import '../widgets/generation_progress_dialog.dart';
-import '../widgets/plan_preview_dialog.dart';
 
 /// Currently selected workout category filter for the weekly plan.
 final selectedWorkoutCategoryProvider = StateProvider<String>((_) => 'All');
@@ -272,9 +268,9 @@ class _WorkoutsHeaderState extends ConsumerState<_WorkoutsHeader> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primary.withOpacity(0.2),
+                                  color: AppColors.primary.withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: AppColors.primary.withOpacity(0.5)),
+                                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.5)),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -350,34 +346,6 @@ class _WorkoutsHeaderState extends ConsumerState<_WorkoutsHeader> {
   }
 }
 
-UserProfile _defaultProfile() {
-  return UserProfile(
-    uid: 'mock-user',
-    basicInfo: BasicInfo(fullName: 'Guest', age: 28, gender: 'Prefer not to say'),
-    bodyMetrics: BodyMetrics(height: 170, weight: 70, targetWeight: 70, bodyType: 'Mesomorph'),
-    fitnessProfile: FitnessProfile(
-      primaryGoal: 'General Health',
-      fitnessLevel: 'Beginner',
-      activityLevel: 'Moderately Active',
-      availableEquipment: const ['Dumbbells', 'Mat'],
-      workoutLocation: 'Home',
-      durationPreference: '30-45 mins',
-    ),
-    nutritionProfile: NutritionProfile(
-      dietaryPreference: 'No preference',
-      allergies: const [],
-      mealsPerDay: 3,
-      waterIntakeGoal: 2.5,
-    ),
-    healthLifestyle: HealthLifestyle(
-      medicalConditions: const [],
-      injuries: 'None',
-      sleepHours: 7,
-      stressLevel: 5,
-    ),
-    isProfileComplete: false,
-  );
-}
 
 class _CategoryChips extends ConsumerWidget {
   const _CategoryChips();

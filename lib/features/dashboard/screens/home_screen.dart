@@ -7,7 +7,7 @@ import '../widgets/daily_overview_card.dart';
 import '../widgets/ai_suggestion_card.dart';
 import '../widgets/activity_graph_card.dart';
 import '../widgets/quick_actions_grid.dart';
-import '../../profile/screens/profile_screen.dart';
+import '../../profile/repositories/profile_repository.dart';
 import '../../session/repositories/session_repository.dart';
 
 class HomeScreen extends ConsumerWidget {

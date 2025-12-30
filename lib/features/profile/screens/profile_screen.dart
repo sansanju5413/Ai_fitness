@@ -7,7 +7,6 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/auth_repository.dart';
 import '../repositories/profile_repository.dart';
-import '../models/user_profile.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -342,16 +341,7 @@ class _DetailRow extends StatelessWidget {
   }
 }
 
-final profileStreamProvider = StreamProvider<UserProfile?>((ref) {
-  try {
-    return ref.read(profileRepositoryProvider).watchProfile();
-  } catch (e) {
-    // Return empty stream on error
-    return Stream.value(null);
-  }
-});
-
-class _ProfileMenuItem extends StatelessWidget {
+final class _ProfileMenuItem extends StatelessWidget {
   final IconData icon;
   final String title;
   final String? subtitle;

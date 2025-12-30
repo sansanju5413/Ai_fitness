@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../workout/models/workout_plan.dart';
+import '../../auth/auth_repository.dart';
 import '../models/workout_session.dart';
 
 class SessionRepository {
@@ -82,14 +82,15 @@ class SessionRepository {
   }
 
   /// Get all workout sessions for the current user
-  Stream<List<WorkoutSession>> getWorkoutSessions() {
-    if (_userId == null) {
+  Stream<List<WorkoutSession>> getWorkoutSessions([String? userId]) {
+    final uid = userId ?? _userId;
+    if (uid == null) {
       return Stream.value([]);
     }
 
     return _firestore
         .collection('users')
-        .doc(_userId)
+        .doc(uid)
         .collection('workouts')
         .orderBy('startTime', descending: true)
         .snapshots()
@@ -127,5 +128,13 @@ final sessionRepositoryProvider = Provider<SessionRepository>((ref) {
 });
 
 final workoutSessionsStreamProvider = StreamProvider<List<WorkoutSession>>((ref) {
-  return ref.read(sessionRepositoryProvider).getWorkoutSessions();
+  final authState = ref.watch(authStateProvider);
+  return authState.when(
+    data: (user) {
+      if (user == null) return Stream.value(<WorkoutSession>[]);
+      return ref.read(sessionRepositoryProvider).getWorkoutSessions(user.uid);
+    },
+    loading: () => const Stream.empty(),
+    error: (error, stack) => Stream.error(error, stack),
+  );
 });

@@ -42,9 +42,6 @@ class AiInsightsService extends BaseAiService {
     } catch (e) {
       print('[AiInsightsService] Error checking cache: $e');
     }
-    if (profile == null) {
-      return 'Complete your profile setup to get personalized AI insights tailored to your fitness goals.';
-    }
 
     final now = DateTime.now();
     final last7Days = now.subtract(const Duration(days: 7));

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/workout_plan.dart';
+import '../../auth/auth_repository.dart';
 import '../models/generation_progress.dart';
 import '../services/workout_generator_service.dart';
 import '../../profile/models/user_profile.dart';
@@ -21,8 +22,9 @@ class WorkoutRepository {
 
   String? get _userId => _auth.currentUser?.uid;
 
-  Future<WorkoutPlan?> getCurrentPlan({bool useMockFallback = false}) async {
-    if (_userId == null) {
+  Future<WorkoutPlan?> getCurrentPlan({String? userId, bool useMockFallback = false}) async {
+    final uid = userId ?? _userId;
+    if (uid == null) {
       return useMockFallback ? _generateMockPlan() : null;
     }
 
@@ -30,7 +32,7 @@ class WorkoutRepository {
       // Try to fetch active plan from Firestore
       final plansSnapshot = await _firestore
           .collection('users')
-          .doc(_userId)
+          .doc(uid)
           .collection('workout_plans')
           .where('isActive', isEqualTo: true)
           .orderBy('createdAt', descending: true)
@@ -40,14 +42,14 @@ class WorkoutRepository {
       if (plansSnapshot.docs.isNotEmpty) {
         final planData = plansSnapshot.docs.first.data();
         planData['id'] = plansSnapshot.docs.first.id;
-        planData['userId'] = _userId!;
+        planData['userId'] = uid;
         return WorkoutPlan.fromJson(planData);
       }
 
       // If no active plan, check for drafts
       final draftsSnapshot = await _firestore
           .collection('users')
-          .doc(_userId)
+          .doc(uid)
           .collection('workout_plans')
           .where('isDraft', isEqualTo: true)
           .orderBy('createdAt', descending: true)
@@ -57,7 +59,7 @@ class WorkoutRepository {
       if (draftsSnapshot.docs.isNotEmpty) {
         final planData = draftsSnapshot.docs.first.data();
         planData['id'] = draftsSnapshot.docs.first.id;
-        planData['userId'] = _userId!;
+        planData['userId'] = uid;
         return WorkoutPlan.fromJson(planData);
       }
 
@@ -160,7 +162,7 @@ class WorkoutRepository {
     try {
       // The service handles granular updates if it returned a stream, 
       // but here it returns a Future, so we provide high-level updates.
-      final plan = await _generatorService!.generatePlan(profile, userNotes: userNotes);
+      final plan = await _generatorService.generatePlan(profile, userNotes: userNotes);
       
       yield GenerationProgress.validating();
       
@@ -407,14 +409,15 @@ class WorkoutRepository {
   }
 
   /// Stream of the currently active workout plan - realtime updates
-  Stream<WorkoutPlan?> watchCurrentPlan() {
-    if (_userId == null) {
+  Stream<WorkoutPlan?> watchCurrentPlan([String? userId]) {
+    final uid = userId ?? _userId;
+    if (uid == null) {
       return Stream.value(null);
     }
 
     return _firestore
         .collection('users')
-        .doc(_userId)
+        .doc(uid)
         .collection('workout_plans')
         .where('isActive', isEqualTo: true)
         .orderBy('createdAt', descending: true)
@@ -424,7 +427,7 @@ class WorkoutRepository {
       if (snapshot.docs.isEmpty) return null;
       final planData = Map<String, dynamic>.from(snapshot.docs.first.data());
       planData['id'] = snapshot.docs.first.id;
-      planData['userId'] = _userId!;
+      planData['userId'] = uid;
       return WorkoutPlan.fromJson(planData);
     });
   }
@@ -439,10 +442,26 @@ final workoutRepositoryProvider = Provider<WorkoutRepository>((ref) {
 });
 
 final currentWorkoutPlanProvider = FutureProvider<WorkoutPlan?>((ref) async {
-  return ref.read(workoutRepositoryProvider).getCurrentPlan(useMockFallback: false);
+  final authState = ref.watch(authStateProvider);
+  return authState.when(
+    data: (user) async {
+      if (user == null) return null;
+      return ref.read(workoutRepositoryProvider).getCurrentPlan(userId: user.uid, useMockFallback: false);
+    },
+    loading: () => null,
+    error: (_, __) => null,
+  );
 });
 
 /// Realtime stream of the active workout plan
 final currentWorkoutPlanStreamProvider = StreamProvider<WorkoutPlan?>((ref) {
-  return ref.watch(workoutRepositoryProvider).watchCurrentPlan();
+  final authState = ref.watch(authStateProvider);
+  return authState.when(
+    data: (user) {
+      if (user == null) return Stream.value(null);
+      return ref.read(workoutRepositoryProvider).watchCurrentPlan(user.uid);
+    },
+    loading: () => const Stream.empty(),
+    error: (_, __) => Stream.value(null),
+  );
 });

@@ -22,6 +22,7 @@ import 'package:ai_fitness_app/features/nutrition/screens/food_logger_screen.dar
 import 'package:ai_fitness_app/features/profile/screens/progress_analytics_screen.dart';
 import 'package:ai_fitness_app/features/profile/screens/settings_screen.dart';
 import 'package:ai_fitness_app/features/profile/screens/profile_screen.dart';
+import 'package:ai_fitness_app/features/chat/screens/chat_screen.dart';
 
 import 'package:ai_fitness_app/features/dashboard/screens/main_scaffold.dart';
 import 'package:ai_fitness_app/core/theme/app_theme.dart';
@@ -94,6 +95,10 @@ final appRouter = GoRouter(
         GoRoute(
           path: '/profile',
           builder: (context, state) => const ProfileScreen(),
+        ),
+        GoRoute(
+          path: '/chat',
+          builder: (context, state) => const ChatScreen(),
         ),
       ],
     ),

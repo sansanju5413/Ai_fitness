@@ -2,7 +2,6 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ai_fitness_app/core/theme/app_theme.dart';
-import 'package:ai_fitness_app/features/session/repositories/session_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ai_fitness_app/features/session/models/workout_session.dart';
 
@@ -22,15 +21,22 @@ class ActivityGraphCard extends StatelessWidget {
 
     final sessions = sessionsAsync.valueOrNull ?? [];
 
-    final Map<DateTime, int> minutesPerDay = {
-      for (final d in weekDays) d: 0,
+    if (sessionsAsync.hasError) {
+      return _buildErrorState(context, sessionsAsync.error.toString());
+    }
+
+    final Map<DateTime, double> minutesPerDay = {
+      for (final d in weekDays) d: 0.0,
     };
 
     for (final s in sessions) {
       if (!s.isCompleted) continue;
-      final d = DateTime(s.startTime.year, s.startTime.month, s.startTime.day);
-      if (minutesPerDay.containsKey(d)) {
-        minutesPerDay[d] = minutesPerDay[d]! + s.duration.inMinutes;
+      final workoutDate = s.startTime.toLocal();
+      for (final day in weekDays) {
+        if (DateUtils.isSameDay(workoutDate, day)) {
+          minutesPerDay[day] = minutesPerDay[day]! + (s.duration.inSeconds / 60.0);
+          break;
+        }
       }
     }
 
@@ -41,7 +47,8 @@ class ActivityGraphCard extends StatelessWidget {
           final index = entry.key;
           final day = entry.value;
           final minutes = minutesPerDay[day] ?? 0;
-          return _makeGroupData(index, (minutes / 10).clamp(0, 12).toDouble(),
+          final double barHeight = minutes > 0 ? (minutes / 10).clamp(0.5, 12.0) : 0.0;
+          return _makeGroupData(index, barHeight,
               isSelected: DateUtils.isSameDay(day, now));
         })
         .toList();
@@ -83,7 +90,7 @@ class ActivityGraphCard extends StatelessWidget {
                 textBaseline: TextBaseline.alphabetic,
                 children: [
                    Text(
-                     '${minutesPerDay.values.fold<int>(0, (a, b) => a + b)}',
+                     '${minutesPerDay.values.fold<double>(0, (a, b) => a + b).ceil()}',
                      style: GoogleFonts.outfit(
                        fontSize: 24,
                        fontWeight: FontWeight.bold,
@@ -186,6 +193,28 @@ class ActivityGraphCard extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+  Widget _buildErrorState(BuildContext context, String error) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.error.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, color: AppColors.error),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Chart data error: $error',
+              style: GoogleFonts.inter(color: AppColors.error, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

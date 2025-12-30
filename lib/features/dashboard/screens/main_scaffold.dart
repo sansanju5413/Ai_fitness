@@ -60,6 +60,12 @@ class _FloatingPillNavBar extends StatelessWidget {
                   onTap: () => context.go('/workouts'),
                 ),
                 _NavBarItem(
+                  icon: Icons.auto_awesome_rounded,
+                  label: 'Aura',
+                  isSelected: location.startsWith('/chat'),
+                  onTap: () => context.go('/chat'),
+                ),
+                _NavBarItem(
                   icon: Icons.restaurant_menu_rounded,
                   label: 'Diet',
                   isSelected: location.startsWith('/diet'),

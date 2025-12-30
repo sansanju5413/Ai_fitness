@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
 import '../models/generation_progress.dart';
-import '../models/workout_plan.dart';
 
 /// Shows real-time progress of workout plan generation.
 /// 
@@ -372,10 +371,6 @@ class _GenerationProgressDialogState extends State<GenerationProgressDialog>
   }
   
   Widget _buildActionButton() {
-    final isProcessing = _currentProgress.status == GenerationStatus.initializing ||
-        _currentProgress.status == GenerationStatus.generatingDay ||
-        _currentProgress.status == GenerationStatus.validating;
-    
     final isError = _currentProgress.status == GenerationStatus.error;
     final isComplete = _currentProgress.status == GenerationStatus.complete;
 

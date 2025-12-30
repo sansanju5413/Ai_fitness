@@ -4,14 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../profile/providers/profile_form_provider.dart';
+import '../../profile/repositories/profile_repository.dart';
 
 class DashboardHeader extends ConsumerWidget {
   const DashboardHeader({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final fullName = ref.watch(profileFormProvider).fullName;
+    final profileAsync = ref.watch(profileStreamProvider);
+    final fullName = profileAsync.valueOrNull?.basicInfo.fullName ?? '';
     final userName = fullName.isNotEmpty 
         ? (fullName.split(' ').isNotEmpty ? fullName.split(' ').first : 'Athlete')
         : 'Athlete';

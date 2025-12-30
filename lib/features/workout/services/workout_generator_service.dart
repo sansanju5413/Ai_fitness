@@ -186,6 +186,7 @@ IMPORTANT: Ensure "blocks" is a list containing "Warmup", "Main", and "Cooldown"
 Goal: ${profile.fitnessProfile.primaryGoal}
 Level: ${profile.fitnessProfile.fitnessLevel}
 Equipment: $equipment
+Injuries/Limitations: $injuries
 $extraNotes
 
 Format:

@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:io';
 import '../models/user_profile.dart';
+import '../../auth/auth_repository.dart';
 import '../services/ai_assessment_service.dart';
 import '../../../core/services/storage_service.dart';
 
@@ -56,15 +57,16 @@ class ProfileRepository {
     }
   }
 
-  Stream<UserProfile?> watchProfile() {
-    if (_userId == null) {
+  Stream<UserProfile?> watchProfile([String? userId]) {
+    final uid = userId ?? _userId;
+    if (uid == null) {
       return Stream.value(null);
     }
 
     try {
       return _firestore
           .collection('users')
-          .doc(_userId)
+          .doc(uid)
           .snapshots()
           .map((snapshot) {
         if (!snapshot.exists || snapshot.data() == null) {
@@ -140,5 +142,13 @@ final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
 });
 
 final profileStreamProvider = StreamProvider<UserProfile?>((ref) {
-  return ref.watch(profileRepositoryProvider).watchProfile();
+  final authState = ref.watch(authStateProvider);
+  return authState.when(
+    data: (user) {
+      if (user == null) return Stream.value(null);
+      return ref.read(profileRepositoryProvider).watchProfile(user.uid);
+    },
+    loading: () => const Stream.empty(),
+    error: (_, __) => Stream.value(null),
+  );
 });
